@@ -6,14 +6,16 @@ import {
   CheckCircle2,
   ChevronDown,
   CircleAlert,
+  Copy,
   LocateFixed,
   MapPin,
   Navigation,
   Search,
   ShieldCheck,
   Sparkles,
+  Share2,
 } from "lucide-react";
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { categoryLabels } from "@/lib/category-meta";
 import type { ExamCentre, PoiCategory } from "@/lib/types";
 
@@ -56,6 +58,7 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
     "Use your current location or enter coordinates to measure distance to the centre.",
   );
   const [isLocating, setIsLocating] = useState(false);
+  const [shareStatus, setShareStatus] = useState("");
 
   const selectedCentre =
     localCentres.find((centre) => centre.id === selectedCentreId) ??
@@ -91,6 +94,29 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
   );
   const centreOptions =
     filteredCentres.length > 0 ? filteredCentres : localCentres;
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const requestedCentre = params.get("centre");
+
+    if (requestedCentre && localCentres.some((centre) => centre.id === requestedCentre)) {
+      queueMicrotask(() => setSelectedCentreId(requestedCentre));
+    }
+  }, [localCentres]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !selectedCentre) {
+      return;
+    }
+
+    const url = new URL(window.location.href);
+    url.searchParams.set("centre", selectedCentre.id);
+    window.history.replaceState({}, "", url.toString());
+  }, [selectedCentre]);
 
   if (!selectedCentre) {
     return (
@@ -174,6 +200,30 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
       label: "Entered location",
     });
     setLocationStatus("Manual location applied.");
+  }
+
+  async function shareCurrentCentre() {
+    const url = new URL(window.location.href);
+    url.searchParams.set("centre", selectedCentre.id);
+    const text = `${selectedCentre.name} - ${selectedCentre.address}`;
+    const shareText = `${text}\n${url.toString()}`;
+
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: selectedCentre.name,
+          text,
+          url: url.toString(),
+        });
+        setShareStatus("Centre link shared.");
+        return;
+      }
+
+      await navigator.clipboard.writeText(shareText);
+      setShareStatus("Centre link copied to clipboard.");
+    } catch {
+      setShareStatus("Could not share automatically. Copy the URL from the address bar.");
+    }
   }
 
   return (
@@ -401,6 +451,24 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
                 {selectedCentre.gateInfo ?? "Gate information pending"}
               </p>
             </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={shareCurrentCentre}
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--color-line)] bg-white px-3 py-2 text-sm font-bold text-[var(--color-ink)]"
+              >
+                <Share2 className="h-4 w-4" />
+                Share centre
+              </button>
+              <button
+                type="button"
+                onClick={shareCurrentCentre}
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-[var(--color-brand)] px-3 py-2 text-sm font-bold text-white"
+              >
+                <Copy className="h-4 w-4" />
+                Copy link
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-px border-b border-[var(--color-line)] bg-[var(--color-line)] md:grid-cols-4">
@@ -422,6 +490,11 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
               : `You are about ${Math.round(userDistanceMeters / 100) / 10} km from this centre.`
             }
           </div>
+          {shareStatus && (
+            <div className="border-b border-[var(--color-line)] bg-[#f2f7ff] px-4 py-2 text-sm font-semibold text-[var(--color-brand)]">
+              {shareStatus}
+            </div>
+          )}
 
           <div className="h-[calc(100vh-266px)] min-h-[560px]">
             <MapPane
