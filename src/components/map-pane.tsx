@@ -9,9 +9,16 @@ import { useEffect, useMemo, useRef } from "react";
 import { categoryLabels, categoryShortLabels } from "@/lib/category-meta";
 import type { ExamCentre, PoiCategory } from "@/lib/types";
 
+type LocationPoint = {
+  latitude: number;
+  longitude: number;
+  label: string;
+};
+
 type MapPaneProps = {
   centre: ExamCentre;
   activeCategories: PoiCategory[];
+  userLocation?: LocationPoint | null;
 };
 
 const defaultRasterStyle: StyleSpecification = {
@@ -33,10 +40,10 @@ const defaultRasterStyle: StyleSpecification = {
   ],
 };
 
-function markerElement(label: string, variant: "centre" | "poi") {
+function markerElement(label: string, variant: "centre" | "poi" | "user") {
   const element = document.createElement("button");
   element.type = "button";
-  element.className = `geo-marker ${variant === "poi" ? "poi" : ""}`;
+  element.className = `geo-marker ${variant}`;
   element.textContent = label;
   return element;
 }
@@ -50,7 +57,7 @@ function popupHtml(title: string, lines: string[]) {
   `;
 }
 
-export function MapPane({ centre, activeCategories }: MapPaneProps) {
+export function MapPane({ centre, activeCategories, userLocation }: MapPaneProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const markersRef = useRef<Marker[]>([]);
@@ -119,6 +126,22 @@ export function MapPane({ centre, activeCategories }: MapPaneProps) {
 
     markersRef.current.push(centreMarker);
 
+    if (userLocation) {
+      const userMarker = new maplibregl.Marker({
+        element: markerElement("U", "user"),
+        anchor: "center",
+      })
+        .setLngLat([userLocation.longitude, userLocation.latitude])
+        .setPopup(
+          new maplibregl.Popup({ offset: 18 }).setHTML(
+          popupHtml(userLocation.label, ["Current location selected"]),
+        ),
+      )
+      .addTo(map);
+
+      markersRef.current.push(userMarker);
+    }
+
     for (const poi of visiblePois) {
       const poiMarker = new maplibregl.Marker({
         element: markerElement(categoryShortLabels[poi.category], "poi"),
@@ -128,7 +151,7 @@ export function MapPane({ centre, activeCategories }: MapPaneProps) {
         .setPopup(
           new maplibregl.Popup({ offset: 18 }).setHTML(
             popupHtml(poi.name, [
-              `${categoryLabels[poi.category]} · ${poi.distanceMeters} m`,
+              `${categoryLabels[poi.category]} • ${poi.distanceMeters} m`,
               `Walking: ${poi.walkingTimeMinutes} min`,
             ]),
           ),
@@ -137,7 +160,7 @@ export function MapPane({ centre, activeCategories }: MapPaneProps) {
 
       markersRef.current.push(poiMarker);
     }
-  }, [centre, visiblePois]);
+  }, [centre, userLocation, visiblePois]);
 
   return <div ref={containerRef} className="h-full min-h-[420px] w-full" />;
 }

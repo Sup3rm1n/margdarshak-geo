@@ -68,6 +68,11 @@ body {
   font-size: 12px;
 }
 
+.geo-marker.user {
+  background: var(--color-success);
+  font-size: 13px;
+}
+
 .geo-popup {
   display: grid;
   gap: 4px;
