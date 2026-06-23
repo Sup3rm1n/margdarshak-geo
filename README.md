@@ -7,7 +7,7 @@ Independent map-based exam centre and nearby POI system for Margdarshak.
 - Next.js App Router with TypeScript
 - Vercel hosting
 - Supabase PostgreSQL with PostGIS
-- Leaflet and OpenStreetMap tiles for the MVP map
+- MapLibre GL and OpenStreetMap raster tiles for the MVP map
 - Future routing provider: OSRM, GraphHopper, or Valhalla
 
 ## Local Development
@@ -48,4 +48,4 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 - Supabase Auth and role-based admin access
 - Routing API integration for live route lines and travel time
 - Suggest-place and report-wrong-info forms
-- Production tile provider instead of direct public OSM tiles
+- Production MapLibre style/tile provider instead of direct public OSM tiles

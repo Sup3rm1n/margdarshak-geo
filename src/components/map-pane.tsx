@@ -1,8 +1,11 @@
 "use client";
 
-import { divIcon } from "leaflet";
-import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
-import { useEffect } from "react";
+import maplibregl, {
+  type Map as MapLibreMap,
+  type Marker,
+  type StyleSpecification,
+} from "maplibre-gl";
+import { useEffect, useMemo, useRef } from "react";
 import { categoryLabels, categoryShortLabels } from "@/lib/category-meta";
 import type { ExamCentre, PoiCategory } from "@/lib/types";
 
@@ -11,73 +14,130 @@ type MapPaneProps = {
   activeCategories: PoiCategory[];
 };
 
-function Recenter({ centre }: { centre: ExamCentre }) {
-  const map = useMap();
+const defaultRasterStyle: StyleSpecification = {
+  version: 8,
+  sources: {
+    osm: {
+      type: "raster",
+      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+      tileSize: 256,
+      attribution: "OpenStreetMap contributors",
+    },
+  },
+  layers: [
+    {
+      id: "osm",
+      type: "raster",
+      source: "osm",
+    },
+  ],
+};
 
-  useEffect(() => {
-    map.setView([centre.latitude, centre.longitude], 14, {
-      animate: true,
-    });
-  }, [centre, map]);
-
-  return null;
+function markerElement(label: string, variant: "centre" | "poi") {
+  const element = document.createElement("button");
+  element.type = "button";
+  element.className = `geo-marker ${variant === "poi" ? "poi" : ""}`;
+  element.textContent = label;
+  return element;
 }
 
-const centreIcon = divIcon({
-  className: "",
-  html: '<span class="geo-marker">C</span>',
-  iconSize: [32, 32],
-  iconAnchor: [16, 16],
-});
-
-function poiIcon(category: PoiCategory) {
-  return divIcon({
-    className: "",
-    html: `<span class="geo-marker poi">${categoryShortLabels[category]}</span>`,
-    iconSize: [24, 24],
-    iconAnchor: [12, 12],
-  });
+function popupHtml(title: string, lines: string[]) {
+  return `
+    <div class="geo-popup">
+      <strong>${title}</strong>
+      ${lines.map((line) => `<span>${line}</span>`).join("")}
+    </div>
+  `;
 }
 
 export function MapPane({ centre, activeCategories }: MapPaneProps) {
-  const visiblePois = centre.pois.filter((poi) =>
-    activeCategories.includes(poi.category),
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<MapLibreMap | null>(null);
+  const markersRef = useRef<Marker[]>([]);
+
+  const visiblePois = useMemo(
+    () =>
+      centre.pois.filter((poi) => activeCategories.includes(poi.category)),
+    [activeCategories, centre.pois],
   );
 
-  return (
-    <MapContainer
-      center={[centre.latitude, centre.longitude]}
-      zoom={14}
-      scrollWheelZoom
-      className="h-full min-h-[420px]"
-    >
-      <Recenter centre={centre} />
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-      <Marker position={[centre.latitude, centre.longitude]} icon={centreIcon}>
-        <Popup>
-          <strong>{centre.name}</strong>
-          <br />
-          {centre.address}
-        </Popup>
-      </Marker>
-      {visiblePois.map((poi) => (
-        <Marker
-          key={poi.id}
-          position={[poi.latitude, poi.longitude]}
-          icon={poiIcon(poi.category)}
-        >
-          <Popup>
-            <strong>{poi.name}</strong>
-            <br />
-            {categoryLabels[poi.category]} · {poi.distanceMeters} m
-            <br />
-            Walking: {poi.walkingTimeMinutes} min
-          </Popup>
-        </Marker>
-      ))}
-    </MapContainer>
-  );
+  useEffect(() => {
+    if (!containerRef.current || mapRef.current) {
+      return;
+    }
+
+    mapRef.current = new maplibregl.Map({
+      container: containerRef.current,
+      style: defaultRasterStyle,
+      center: [centre.longitude, centre.latitude],
+      zoom: 14,
+      attributionControl: false,
+    });
+
+    mapRef.current.addControl(
+      new maplibregl.NavigationControl({ visualizePitch: true }),
+      "top-right",
+    );
+    mapRef.current.addControl(
+      new maplibregl.AttributionControl({ compact: true }),
+      "bottom-right",
+    );
+
+    return () => {
+      mapRef.current?.remove();
+      mapRef.current = null;
+    };
+  }, [centre.latitude, centre.longitude]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+
+    if (!map) {
+      return;
+    }
+
+    markersRef.current.forEach((marker) => marker.remove());
+    markersRef.current = [];
+
+    map.easeTo({
+      center: [centre.longitude, centre.latitude],
+      zoom: 14,
+      duration: 600,
+    });
+
+    const centreMarker = new maplibregl.Marker({
+      element: markerElement("C", "centre"),
+      anchor: "center",
+    })
+      .setLngLat([centre.longitude, centre.latitude])
+      .setPopup(
+        new maplibregl.Popup({ offset: 22 }).setHTML(
+          popupHtml(centre.name, [centre.address]),
+        ),
+      )
+      .addTo(map);
+
+    markersRef.current.push(centreMarker);
+
+    for (const poi of visiblePois) {
+      const poiMarker = new maplibregl.Marker({
+        element: markerElement(categoryShortLabels[poi.category], "poi"),
+        anchor: "center",
+      })
+        .setLngLat([poi.longitude, poi.latitude])
+        .setPopup(
+          new maplibregl.Popup({ offset: 18 }).setHTML(
+            popupHtml(poi.name, [
+              `${categoryLabels[poi.category]} · ${poi.distanceMeters} m`,
+              `Walking: ${poi.walkingTimeMinutes} min`,
+            ]),
+          ),
+        )
+        .addTo(map);
+
+      markersRef.current.push(poiMarker);
+    }
+  }, [centre, visiblePois]);
+
+  return <div ref={containerRef} className="h-full min-h-[420px] w-full" />;
 }

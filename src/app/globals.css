@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import "leaflet/dist/leaflet.css";
+@import "maplibre-gl/dist/maplibre-gl.css";
 
 :root {
   --background: #f7f8f4;
@@ -29,12 +29,6 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-.leaflet-container {
-  min-height: 100%;
-  width: 100%;
-  font-family: inherit;
-}
-
 .geo-marker {
   display: grid;
   height: 32px;
@@ -47,6 +41,7 @@ body {
   font-size: 15px;
   font-weight: 800;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.24);
+  cursor: pointer;
 }
 
 .geo-marker.poi {
@@ -54,4 +49,21 @@ body {
   width: 24px;
   background: #d97706;
   font-size: 12px;
+}
+
+.geo-popup {
+  display: grid;
+  gap: 4px;
+  color: #16201a;
+  font: 13px/1.35 Arial, Helvetica, sans-serif;
+}
+
+.geo-popup strong {
+  font-size: 14px;
+}
+
+.maplibregl-popup-content {
+  border-radius: 8px;
+  padding: 10px 12px;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.2);
 }
