@@ -51,6 +51,7 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
     latitude: "",
     longitude: "",
   });
+  const [centreSearch, setCentreSearch] = useState("");
   const [locationStatus, setLocationStatus] = useState(
     "Use your current location or enter coordinates to measure distance to the centre.",
   );
@@ -70,6 +71,26 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
 
   const selectedCategories =
     activeCategories.length === 0 ? categories : activeCategories;
+  const filteredCentres = useMemo(
+    () =>
+      localCentres.filter((centre) => {
+        const query = centreSearch.trim().toLowerCase();
+
+        if (!query) {
+          return true;
+        }
+
+        return (
+          centre.name.toLowerCase().includes(query) ||
+          centre.address.toLowerCase().includes(query) ||
+          centre.landmark?.toLowerCase().includes(query) ||
+          centre.district.toLowerCase().includes(query)
+        );
+      }),
+    [centreSearch, localCentres],
+  );
+  const centreOptions =
+    filteredCentres.length > 0 ? filteredCentres : localCentres;
 
   if (!selectedCentre) {
     return (
@@ -203,6 +224,15 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
             </div>
 
             <div className="relative mt-3">
+              <div className="mb-2 flex items-center gap-2 rounded-lg border border-[var(--color-line)] bg-[var(--color-soft)] px-3 py-2">
+                <Search className="h-4 w-4 shrink-0 text-[var(--color-muted)]" />
+                <input
+                  value={centreSearch}
+                  onChange={(event) => setCentreSearch(event.target.value)}
+                  placeholder="Search Patna centre"
+                  className="w-full bg-transparent text-sm font-medium outline-none placeholder:text-[var(--color-muted)]"
+                />
+              </div>
               <select
                 aria-label="Exam centre"
                 value={selectedCentre.id}
@@ -212,7 +242,7 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
                 }}
                 className="w-full appearance-none rounded-lg border border-[var(--color-line)] bg-white px-3 py-3 pr-10 text-sm font-bold outline-none focus:border-[var(--color-brand)]"
               >
-                {localCentres.map((centre) => (
+                {centreOptions.map((centre) => (
                   <option key={centre.id} value={centre.id}>
                     {centre.name}
                   </option>
@@ -220,6 +250,11 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
               </select>
               <ChevronDown className="pointer-events-none absolute right-3 top-3.5 h-4 w-4 text-[var(--color-muted)]" />
             </div>
+            {filteredCentres.length === 0 && centreSearch.trim() && (
+              <p className="mt-2 text-xs font-medium text-[var(--color-muted)]">
+                No centres matched {centreSearch.trim()}. Showing all Patna centres instead.
+              </p>
+            )}
 
             <div className="mt-4 space-y-3">
               <InfoRow icon={MapPin} text={selectedCentre.address} />
