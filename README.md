@@ -1,36 +1,51 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Margdarshak Geo
 
-## Getting Started
+Independent map-based exam centre and nearby POI system for Margdarshak.
 
-First, run the development server:
+## Stack
+
+- Next.js App Router with TypeScript
+- Vercel hosting
+- Supabase PostgreSQL with PostGIS
+- Leaflet and OpenStreetMap tiles for the MVP map
+- Future routing provider: OSRM, GraphHopper, or Valhalla
+
+## Local Development
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+The app works with local seed data until Supabase environment variables are added.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Supabase Setup
 
-## Learn More
+1. Create a Supabase project.
+2. Open the SQL editor.
+3. Run `supabase/schema.sql`.
+4. Copy `.env.example` to `.env.local`.
+5. Add:
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+NEXT_PUBLIC_SUPABASE_URL=your-project-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## MVP Scope
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- Select an exam centre
+- Show centre and nearby POIs on a map
+- Filter nearby places by student-focused categories
+- Display distance, walking time, driving time, and verification status
+- Fall back to seed data when Supabase is not configured
 
-## Deploy on Vercel
+## Next Needed Pieces
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Admin CRUD screens for centres and POIs
+- Supabase Auth and role-based admin access
+- Routing API integration for live route lines and travel time
+- Suggest-place and report-wrong-info forms
+- Production tile provider instead of direct public OSM tiles
