@@ -3,13 +3,23 @@
 import dynamic from "next/dynamic";
 import {
   BadgeCheck,
+  Building2,
+  CheckCircle2,
+  ChevronDown,
   CircleAlert,
   Clock3,
   Database,
+  FileWarning,
+  Layers3,
+  ListFilter,
+  LocateFixed,
   MapPin,
   Navigation,
+  Plus,
   Route,
+  Search,
   ShieldCheck,
+  Sparkles,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { categoryLabels } from "@/lib/category-meta";
@@ -20,7 +30,7 @@ const MapPane = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="grid h-full min-h-[420px] place-items-center bg-[#dfe7dc] text-sm font-semibold text-[#526050]">
+      <div className="grid h-full min-h-[420px] place-items-center bg-[#eef3f6] text-sm font-semibold text-[#52616b]">
         Loading map
       </div>
     ),
@@ -30,6 +40,8 @@ const MapPane = dynamic(
 type GeoWorkspaceProps = {
   centres: ExamCentre[];
 };
+
+const navItems = ["Dashboard", "Centres", "POIs", "Reports", "Imports"];
 
 export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
   const [selectedCentreId, setSelectedCentreId] = useState(centres[0]?.id);
@@ -59,7 +71,7 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
 
   if (!selectedCentre) {
     return (
-      <main className="grid min-h-screen place-items-center p-6">
+      <main className="grid min-h-screen place-items-center bg-[var(--color-app)] p-6">
         <p>No exam centres are available yet.</p>
       </main>
     );
@@ -68,81 +80,123 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
   const visiblePois = selectedCentre.pois.filter((poi) =>
     selectedCategories.includes(poi.category),
   );
+  const verifiedPois = selectedCentre.pois.filter(
+    (poi) => poi.verifiedStatus === "verified",
+  );
+  const reportedPois = selectedCentre.pois.filter(
+    (poi) => poi.verifiedStatus === "reported",
+  );
+  const verificationScore = Math.round(
+    (verifiedPois.length / Math.max(selectedCentre.pois.length, 1)) * 100,
+  );
 
   return (
-    <main className="min-h-screen bg-[#f7f8f4]">
-      <header className="border-b border-[#d9dfd4] bg-white/95 px-5 py-4">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0f766e]">
-              Margdarshak Geo
-            </p>
-            <h1 className="mt-1 text-2xl font-semibold text-[#16201a] md:text-3xl">
-              Exam centre map and nearby POI desk
-            </h1>
+    <main className="min-h-screen bg-[var(--color-app)] text-[var(--color-ink)]">
+      <header className="border-b border-[var(--color-line)] bg-white">
+        <div className="mx-auto flex max-w-[1500px] flex-col gap-3 px-4 py-3 xl:px-6">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-center gap-3">
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[var(--color-brand)] text-sm font-black text-white">
+                MG
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="text-xl font-bold text-[var(--color-ink)]">
+                    Margdarshak Geo
+                  </h1>
+                  <StatusPill label="Local MVP" tone="blue" />
+                </div>
+                <p className="mt-0.5 text-sm font-medium text-[var(--color-muted)]">
+                  Exam centre intelligence and student-focused nearby places
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <div className="flex min-w-0 items-center gap-2 rounded-lg border border-[var(--color-line)] bg-[var(--color-soft)] px-3 py-2">
+                <Search className="h-4 w-4 shrink-0 text-[var(--color-muted)]" />
+                <span className="truncate text-sm font-medium text-[var(--color-muted)]">
+                  Search centres, POIs, districts
+                </span>
+              </div>
+              <button className="inline-flex items-center justify-center gap-2 rounded-lg bg-[var(--color-brand)] px-4 py-2 text-sm font-bold text-white">
+                <Plus className="h-4 w-4" />
+                Add POI
+              </button>
+            </div>
           </div>
-          <div className="grid grid-cols-3 gap-2 text-sm">
-            <Metric label="Centres" value={centres.length} />
-            <Metric label="POIs" value={selectedCentre.pois.length} />
-            <Metric
-              label="Verified"
-              value={
-                selectedCentre.pois.filter(
-                  (poi) => poi.verifiedStatus === "verified",
-                ).length
-              }
-            />
-          </div>
+
+          <nav className="flex gap-1 overflow-x-auto">
+            {navItems.map((item, index) => (
+              <button
+                key={item}
+                className={`rounded-md px-3 py-2 text-sm font-bold ${
+                  index === 0
+                    ? "bg-[var(--color-brand-soft)] text-[var(--color-brand)]"
+                    : "text-[var(--color-muted)] hover:bg-[var(--color-soft)]"
+                }`}
+              >
+                {item}
+              </button>
+            ))}
+          </nav>
         </div>
       </header>
 
-      <section className="mx-auto grid max-w-7xl gap-4 px-5 py-5 lg:grid-cols-[360px_minmax(0,1fr)]">
+      <section className="mx-auto grid max-w-[1500px] gap-4 px-4 py-4 xl:grid-cols-[360px_minmax(0,1fr)_320px] xl:px-6">
         <aside className="flex flex-col gap-4">
-          <section className="rounded-lg border border-[#d9dfd4] bg-white p-4">
-            <label
-              htmlFor="centre"
-              className="text-xs font-bold uppercase tracking-[0.14em] text-[#6c7669]"
-            >
-              Exam centre
-            </label>
-            <select
-              id="centre"
-              value={selectedCentre.id}
-              onChange={(event) => {
-                setSelectedCentreId(event.target.value);
-                setActiveCategories([]);
-              }}
-              className="mt-2 w-full rounded-md border border-[#c8d0c1] bg-white px-3 py-2 text-sm font-semibold outline-none focus:border-[#0f766e]"
-            >
-              {centres.map((centre) => (
-                <option key={centre.id} value={centre.id}>
-                  {centre.name}
-                </option>
-              ))}
-            </select>
+          <section className="panel p-4">
+            <div className="flex items-center justify-between gap-3">
+              <PanelTitle icon={Building2} title="Centre" />
+              <StatusPill
+                label={selectedCentre.verifiedStatus}
+                tone={
+                  selectedCentre.verifiedStatus === "verified"
+                    ? "green"
+                    : "amber"
+                }
+              />
+            </div>
+
+            <div className="relative mt-3">
+              <select
+                aria-label="Exam centre"
+                value={selectedCentre.id}
+                onChange={(event) => {
+                  setSelectedCentreId(event.target.value);
+                  setActiveCategories([]);
+                }}
+                className="w-full appearance-none rounded-lg border border-[var(--color-line)] bg-white px-3 py-3 pr-10 text-sm font-bold outline-none focus:border-[var(--color-brand)]"
+              >
+                {centres.map((centre) => (
+                  <option key={centre.id} value={centre.id}>
+                    {centre.name}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-3 top-3.5 h-4 w-4 text-[var(--color-muted)]" />
+            </div>
 
             <div className="mt-4 space-y-3">
               <InfoRow icon={MapPin} text={selectedCentre.address} />
               <InfoRow
                 icon={ShieldCheck}
-                text={`${selectedCentre.district}, ${selectedCentre.state} · ${selectedCentre.examType}`}
+                text={`${selectedCentre.district}, ${selectedCentre.state} - ${selectedCentre.examType}`}
               />
               <InfoRow
                 icon={Navigation}
-                text={selectedCentre.landmark ?? "Landmark not added"}
+                text={selectedCentre.landmark ?? "Landmark pending"}
               />
             </div>
           </section>
 
-          <section className="rounded-lg border border-[#d9dfd4] bg-white p-4">
+          <section className="panel p-4">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-sm font-bold uppercase tracking-[0.14em] text-[#6c7669]">
-                Categories
-              </h2>
+              <PanelTitle icon={ListFilter} title="POI Filters" />
               <button
                 type="button"
                 onClick={() => setActiveCategories([])}
-                className="rounded-md border border-[#c8d0c1] px-2 py-1 text-xs font-semibold text-[#364238]"
+                className="rounded-md border border-[var(--color-line)] px-2.5 py-1.5 text-xs font-bold text-[var(--color-ink)]"
               >
                 All
               </button>
@@ -155,10 +209,10 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
                     key={category}
                     type="button"
                     onClick={() => toggleCategory(category)}
-                    className={`rounded-md border px-3 py-2 text-xs font-semibold ${
+                    className={`rounded-md border px-3 py-2 text-xs font-bold ${
                       isActive
-                        ? "border-[#0f766e] bg-[#e5f3ef] text-[#0f4f49]"
-                        : "border-[#d9dfd4] bg-white text-[#626d60]"
+                        ? "border-[var(--color-brand)] bg-[var(--color-brand-soft)] text-[var(--color-brand)]"
+                        : "border-[var(--color-line)] bg-white text-[var(--color-muted)]"
                     }`}
                   >
                     {categoryLabels[category]}
@@ -168,42 +222,33 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
             </div>
           </section>
 
-          <section className="rounded-lg border border-[#d9dfd4] bg-white p-4">
-            <h2 className="text-sm font-bold uppercase tracking-[0.14em] text-[#6c7669]">
-              Nearby places
-            </h2>
+          <section className="panel p-4">
+            <PanelTitle icon={Database} title="Nearby POIs" />
             <div className="mt-3 space-y-3">
               {visiblePois.map((poi) => (
-                <article
-                  key={poi.id}
-                  className="rounded-md border border-[#e2e6df] p-3"
-                >
+                <article key={poi.id} className="rounded-lg border border-[var(--color-line)] bg-white p-3">
                   <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h3 className="font-semibold text-[#16201a]">
+                    <div className="min-w-0">
+                      <h3 className="truncate font-bold text-[var(--color-ink)]">
                         {poi.name}
                       </h3>
-                      <p className="mt-1 text-xs font-semibold text-[#0f766e]">
+                      <p className="mt-1 text-xs font-bold text-[var(--color-brand)]">
                         {categoryLabels[poi.category]}
                       </p>
                     </div>
                     {poi.verifiedStatus === "verified" ? (
-                      <BadgeCheck className="h-5 w-5 text-[#0f766e]" />
+                      <BadgeCheck className="h-5 w-5 shrink-0 text-[var(--color-success)]" />
                     ) : (
-                      <CircleAlert className="h-5 w-5 text-[#b45309]" />
+                      <CircleAlert className="h-5 w-5 shrink-0 text-[var(--color-warn)]" />
                     )}
                   </div>
-                  <p className="mt-2 text-sm text-[#526050]">{poi.address}</p>
+                  <p className="mt-2 line-clamp-2 text-sm text-[var(--color-muted)]">
+                    {poi.address}
+                  </p>
                   <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
                     <MiniStat label="Distance" value={`${poi.distanceMeters} m`} />
-                    <MiniStat
-                      label="Walk"
-                      value={`${poi.walkingTimeMinutes} min`}
-                    />
-                    <MiniStat
-                      label="Drive"
-                      value={`${poi.drivingTimeMinutes} min`}
-                    />
+                    <MiniStat label="Walk" value={`${poi.walkingTimeMinutes} min`} />
+                    <MiniStat label="Drive" value={`${poi.drivingTimeMinutes} min`} />
                   </div>
                 </article>
               ))}
@@ -211,48 +256,126 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
           </section>
         </aside>
 
-        <section className="overflow-hidden rounded-lg border border-[#d9dfd4] bg-white">
-          <div className="flex flex-col gap-3 border-b border-[#d9dfd4] p-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h2 className="text-lg font-semibold text-[#16201a]">
-                {selectedCentre.name}
-              </h2>
-              <p className="mt-1 text-sm text-[#526050]">
+        <section className="panel overflow-hidden">
+          <div className="flex flex-col gap-3 border-b border-[var(--color-line)] bg-white p-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="truncate text-lg font-bold text-[var(--color-ink)]">
+                  {selectedCentre.name}
+                </h2>
+                <StatusPill label={`${visiblePois.length} visible`} tone="blue" />
+              </div>
+              <p className="mt-1 text-sm font-medium text-[var(--color-muted)]">
                 {selectedCentre.gateInfo ?? "Gate information pending"}
               </p>
             </div>
-            <div className="flex gap-2">
-              <ActionButton icon={Route} label="Route" />
-              <ActionButton icon={Database} label="Report" />
-              <ActionButton icon={Clock3} label="Suggest" />
+            <div className="flex flex-wrap gap-2">
+              <ActionButton icon={LocateFixed} label="Locate" variant="light" />
+              <ActionButton icon={Route} label="Route" variant="dark" />
+              <ActionButton icon={FileWarning} label="Report" variant="light" />
             </div>
           </div>
-          <div className="h-[calc(100vh-190px)] min-h-[520px]">
+
+          <div className="grid grid-cols-2 gap-px border-b border-[var(--color-line)] bg-[var(--color-line)] md:grid-cols-4">
+            <Metric label="Centres" value={centres.length.toString()} />
+            <Metric label="Total POIs" value={selectedCentre.pois.length.toString()} />
+            <Metric label="Verified" value={`${verificationScore}%`} />
+            <Metric label="Reports" value={reportedPois.length.toString()} />
+          </div>
+
+          <div className="h-[calc(100vh-247px)] min-h-[560px]">
             <MapPane
               centre={selectedCentre}
               activeCategories={selectedCategories}
             />
           </div>
         </section>
+
+        <aside className="flex flex-col gap-4">
+          <section className="panel p-4">
+            <PanelTitle icon={Sparkles} title="Exam-Day Summary" />
+            <div className="mt-4 space-y-3">
+              <QualityRow
+                icon={CheckCircle2}
+                label="Verified nearby places"
+                value={verifiedPois.length.toString()}
+                tone="green"
+              />
+              <QualityRow
+                icon={CircleAlert}
+                label="Needs review"
+                value={(selectedCentre.pois.length - verifiedPois.length).toString()}
+                tone="amber"
+              />
+              <QualityRow
+                icon={Layers3}
+                label="Active categories"
+                value={selectedCategories.length.toString()}
+                tone="blue"
+              />
+            </div>
+          </section>
+
+          <section className="panel p-4">
+            <PanelTitle icon={Clock3} title="Priority Checks" />
+            <div className="mt-4 space-y-3">
+              <ChecklistItem checked label="Railway and bus access" />
+              <ChecklistItem checked={verificationScore >= 50} label="Core POIs verified" />
+              <ChecklistItem checked={reportedPois.length === 0} label="No open reports" />
+              <ChecklistItem checked={Boolean(selectedCentre.gateInfo)} label="Gate info added" />
+            </div>
+          </section>
+
+          <section className="panel p-4">
+            <PanelTitle icon={Route} title="Next Modules" />
+            <div className="mt-4 grid gap-2">
+              <ModuleButton label="Admin CRUD" />
+              <ModuleButton label="Student suggestions" />
+              <ModuleButton label="Route engine" />
+              <ModuleButton label="CSV import" />
+            </div>
+          </section>
+        </aside>
       </section>
     </main>
   );
 }
 
-function Metric({ label, value }: { label: string; value: number }) {
+function PanelTitle({
+  icon: Icon,
+  title,
+}: {
+  icon: typeof Building2;
+  title: string;
+}) {
   return (
-    <div className="rounded-md border border-[#d9dfd4] bg-[#fbfcf8] px-3 py-2">
-      <div className="text-lg font-bold text-[#16201a]">{value}</div>
-      <div className="text-xs font-semibold text-[#6c7669]">{label}</div>
+    <div className="flex items-center gap-2">
+      <span className="grid h-8 w-8 place-items-center rounded-md bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
+        <Icon className="h-4 w-4" />
+      </span>
+      <h2 className="text-sm font-black uppercase tracking-[0.08em] text-[var(--color-muted)]">
+        {title}
+      </h2>
+    </div>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="bg-white px-4 py-3">
+      <div className="text-xl font-black text-[var(--color-ink)]">{value}</div>
+      <div className="mt-0.5 text-xs font-bold uppercase tracking-[0.08em] text-[var(--color-muted)]">
+        {label}
+      </div>
     </div>
   );
 }
 
 function MiniStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md bg-[#f1f4ed] px-2 py-2">
-      <div className="font-bold text-[#16201a]">{value}</div>
-      <div className="mt-1 text-[#6c7669]">{label}</div>
+    <div className="rounded-md bg-[var(--color-soft)] px-2 py-2">
+      <div className="font-black text-[var(--color-ink)]">{value}</div>
+      <div className="mt-1 text-[var(--color-muted)]">{label}</div>
     </div>
   );
 }
@@ -265,8 +388,8 @@ function InfoRow({
   text: string;
 }) {
   return (
-    <div className="flex gap-2 text-sm text-[#526050]">
-      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-[#0f766e]" />
+    <div className="flex gap-2 text-sm font-medium text-[var(--color-muted)]">
+      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-brand)]" />
       <span>{text}</span>
     </div>
   );
@@ -275,16 +398,97 @@ function InfoRow({
 function ActionButton({
   icon: Icon,
   label,
+  variant,
 }: {
   icon: typeof Route;
   label: string;
+  variant: "dark" | "light";
 }) {
   return (
     <button
       type="button"
-      className="inline-flex items-center gap-2 rounded-md bg-[#16201a] px-3 py-2 text-sm font-semibold text-white"
+      className={`inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-bold ${
+        variant === "dark"
+          ? "bg-[var(--color-brand)] text-white"
+          : "border border-[var(--color-line)] bg-white text-[var(--color-ink)]"
+      }`}
     >
       <Icon className="h-4 w-4" />
+      {label}
+    </button>
+  );
+}
+
+function StatusPill({
+  label,
+  tone,
+}: {
+  label: string;
+  tone: "blue" | "green" | "amber";
+}) {
+  const colors = {
+    blue: "bg-[var(--color-brand-soft)] text-[var(--color-brand)]",
+    green: "bg-[#e8f7ef] text-[var(--color-success)]",
+    amber: "bg-[#fff4df] text-[var(--color-warn)]",
+  };
+
+  return (
+    <span className={`rounded-full px-2.5 py-1 text-xs font-black capitalize ${colors[tone]}`}>
+      {label}
+    </span>
+  );
+}
+
+function QualityRow({
+  icon: Icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: typeof CheckCircle2;
+  label: string;
+  value: string;
+  tone: "green" | "amber" | "blue";
+}) {
+  const colors = {
+    green: "text-[var(--color-success)] bg-[#e8f7ef]",
+    amber: "text-[var(--color-warn)] bg-[#fff4df]",
+    blue: "text-[var(--color-brand)] bg-[var(--color-brand-soft)]",
+  };
+
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-[var(--color-line)] bg-white p-3">
+      <div className="flex items-center gap-3">
+        <span className={`grid h-8 w-8 place-items-center rounded-md ${colors[tone]}`}>
+          <Icon className="h-4 w-4" />
+        </span>
+        <span className="text-sm font-bold text-[var(--color-ink)]">{label}</span>
+      </div>
+      <span className="text-lg font-black text-[var(--color-ink)]">{value}</span>
+    </div>
+  );
+}
+
+function ChecklistItem({ checked, label }: { checked: boolean; label: string }) {
+  return (
+    <div className="flex items-center gap-3 text-sm font-bold text-[var(--color-ink)]">
+      <span
+        className={`grid h-5 w-5 place-items-center rounded-full border ${
+          checked
+            ? "border-[var(--color-success)] bg-[var(--color-success)] text-white"
+            : "border-[var(--color-line)] bg-white text-transparent"
+        }`}
+      >
+        <CheckCircle2 className="h-3.5 w-3.5" />
+      </span>
+      {label}
+    </div>
+  );
+}
+
+function ModuleButton({ label }: { label: string }) {
+  return (
+    <button className="rounded-lg border border-[var(--color-line)] bg-white px-3 py-2 text-left text-sm font-bold text-[var(--color-ink)]">
       {label}
     </button>
   );

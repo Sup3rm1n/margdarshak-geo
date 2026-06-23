@@ -2,8 +2,18 @@
 @import "maplibre-gl/dist/maplibre-gl.css";
 
 :root {
-  --background: #f7f8f4;
-  --foreground: #16201a;
+  --background: #f4f7fb;
+  --foreground: #142132;
+  --color-app: #f4f7fb;
+  --color-ink: #142132;
+  --color-muted: #607083;
+  --color-line: #d9e2ec;
+  --color-soft: #f8fafc;
+  --color-brand: #174a7c;
+  --color-brand-soft: #e8f1fb;
+  --color-accent: #f59e0b;
+  --color-success: #12805c;
+  --color-warn: #b45309;
 }
 
 @theme inline {
@@ -29,6 +39,13 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+.panel {
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 12px 28px rgba(20, 33, 50, 0.06);
+}
+
 .geo-marker {
   display: grid;
   height: 32px;
@@ -36,7 +53,7 @@ body {
   place-items: center;
   border: 2px solid #ffffff;
   border-radius: 999px;
-  background: #0f766e;
+  background: var(--color-brand);
   color: #ffffff;
   font-size: 15px;
   font-weight: 800;
@@ -47,7 +64,7 @@ body {
 .geo-marker.poi {
   height: 24px;
   width: 24px;
-  background: #d97706;
+  background: var(--color-accent);
   font-size: 12px;
 }
 
