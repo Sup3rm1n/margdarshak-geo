@@ -13,6 +13,7 @@ import {
   Search,
   ShieldCheck,
   Sparkles,
+  Map,
   Share2,
 } from "lucide-react";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
@@ -41,6 +42,7 @@ type UserLocation = {
   label: string;
 };
 
+const FULL_MAP_PATH = "/geo";
 const patnaFocusText =
   "This local build is focused on Patna exam centres, their nearest useful POIs, and the distance from the user's location.";
 
@@ -203,7 +205,7 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
   }
 
   async function shareCurrentCentre() {
-    const url = new URL(window.location.href);
+    const url = new URL(FULL_MAP_PATH, window.location.origin);
     url.searchParams.set("centre", selectedCentre.id);
     const text = `${selectedCentre.name} - ${selectedCentre.address}`;
     const shareText = `${text}\n${url.toString()}`;
@@ -224,6 +226,12 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
     } catch {
       setShareStatus("Could not share automatically. Copy the URL from the address bar.");
     }
+  }
+
+  function openFullMapForCentre() {
+    const url = new URL(FULL_MAP_PATH, window.location.origin);
+    url.searchParams.set("centre", selectedCentre.id);
+    window.location.assign(url.toString());
   }
 
   return (
@@ -452,6 +460,14 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={openFullMapForCentre}
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--color-line)] bg-white px-3 py-2 text-sm font-bold text-[var(--color-ink)]"
+              >
+                <Map className="h-4 w-4" />
+                Open full map
+              </button>
               <button
                 type="button"
                 onClick={shareCurrentCentre}
