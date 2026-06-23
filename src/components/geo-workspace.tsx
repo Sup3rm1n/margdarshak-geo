@@ -20,10 +20,11 @@ import {
   Search,
   ShieldCheck,
   Sparkles,
+  X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { type FormEvent, useMemo, useState } from "react";
 import { categoryLabels } from "@/lib/category-meta";
-import type { ExamCentre, PoiCategory } from "@/lib/types";
+import type { ExamCentre, Poi, PoiCategory } from "@/lib/types";
 
 const MapPane = dynamic(
   () => import("./map-pane").then((module) => module.MapPane),
@@ -41,12 +42,59 @@ type GeoWorkspaceProps = {
   centres: ExamCentre[];
 };
 
+type ModalMode = "centre" | "poi" | "suggestion" | "report" | null;
+
+type Report = {
+  id: string;
+  centreId: string;
+  title: string;
+  details: string;
+};
+
 const navItems = ["Dashboard", "Centres", "POIs", "Reports", "Imports"];
+const allCategories = Object.keys(categoryLabels) as PoiCategory[];
+
+const emptyCentreForm = {
+  name: "",
+  address: "",
+  district: "Patna",
+  state: "Bihar",
+  latitude: "",
+  longitude: "",
+  landmark: "",
+  examType: "",
+  gateInfo: "",
+};
+
+const emptyPoiForm = {
+  name: "",
+  category: "photocopy" as PoiCategory,
+  address: "",
+  latitude: "",
+  longitude: "",
+  phone: "",
+  openingHours: "",
+};
+
+const emptyReportForm = {
+  title: "",
+  details: "",
+};
 
 export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
+  const [localCentres, setLocalCentres] = useState(centres);
   const [selectedCentreId, setSelectedCentreId] = useState(centres[0]?.id);
+  const [activeCategories, setActiveCategories] = useState<PoiCategory[]>([]);
+  const [modalMode, setModalMode] = useState<ModalMode>(null);
+  const [centreForm, setCentreForm] = useState(emptyCentreForm);
+  const [poiForm, setPoiForm] = useState(emptyPoiForm);
+  const [reportForm, setReportForm] = useState(emptyReportForm);
+  const [reports, setReports] = useState<Report[]>([]);
+  const [notice, setNotice] = useState("Local mode: changes are stored in memory until Supabase write APIs are connected.");
+
   const selectedCentre =
-    centres.find((centre) => centre.id === selectedCentreId) ?? centres[0];
+    localCentres.find((centre) => centre.id === selectedCentreId) ??
+    localCentres[0];
 
   const categories = useMemo(
     () =>
@@ -55,7 +103,6 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
       ).sort(),
     [selectedCentre],
   );
-  const [activeCategories, setActiveCategories] = useState<PoiCategory[]>([]);
 
   const selectedCategories =
     activeCategories.length === 0 ? categories : activeCategories;
@@ -67,6 +114,105 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
         ? base.filter((item) => item !== category)
         : [...base, category];
     });
+  }
+
+  function openModal(mode: ModalMode) {
+    setModalMode(mode);
+    setNotice("Fill the form and submit. This local build updates instantly without touching production data.");
+  }
+
+  function closeModal() {
+    setModalMode(null);
+    setCentreForm(emptyCentreForm);
+    setPoiForm(emptyPoiForm);
+    setReportForm(emptyReportForm);
+  }
+
+  function addCentre(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const centre: ExamCentre = {
+      id: slugId(centreForm.name),
+      name: centreForm.name,
+      address: centreForm.address,
+      district: centreForm.district,
+      state: centreForm.state,
+      latitude: Number(centreForm.latitude),
+      longitude: Number(centreForm.longitude),
+      landmark: centreForm.landmark || null,
+      examType: centreForm.examType,
+      gateInfo: centreForm.gateInfo || null,
+      verifiedStatus: "unverified",
+      pois: [],
+    };
+
+    setLocalCentres((current) => [...current, centre]);
+    setSelectedCentreId(centre.id);
+    setActiveCategories([]);
+    setNotice(`${centre.name} added locally. Add nearby POIs next.`);
+    closeModal();
+  }
+
+  function addPoi(event: FormEvent<HTMLFormElement>, source: Poi["source"]) {
+    event.preventDefault();
+
+    if (!selectedCentre) {
+      return;
+    }
+
+    const distanceMeters = distanceBetweenMeters(
+      selectedCentre.latitude,
+      selectedCentre.longitude,
+      Number(poiForm.latitude),
+      Number(poiForm.longitude),
+    );
+    const poi: Poi = {
+      id: slugId(`${selectedCentre.id}-${poiForm.name}`),
+      name: poiForm.name,
+      category: poiForm.category,
+      address: poiForm.address,
+      latitude: Number(poiForm.latitude),
+      longitude: Number(poiForm.longitude),
+      phone: poiForm.phone || null,
+      openingHours: poiForm.openingHours || null,
+      verifiedStatus: source === "manual" ? "verified" : "unverified",
+      source,
+      distanceMeters,
+      walkingTimeMinutes: Math.max(1, Math.round(distanceMeters / 80)),
+      drivingTimeMinutes: Math.max(1, Math.round(distanceMeters / 250)),
+      priorityRank: selectedCentre.pois.length + 1,
+    };
+
+    setLocalCentres((current) =>
+      current.map((centre) =>
+        centre.id === selectedCentre.id
+          ? { ...centre, pois: [...centre.pois, poi] }
+          : centre,
+      ),
+    );
+    setActiveCategories([]);
+    setNotice(`${poi.name} added locally as ${categoryLabels[poi.category]}.`);
+    closeModal();
+  }
+
+  function addReport(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!selectedCentre) {
+      return;
+    }
+
+    setReports((current) => [
+      ...current,
+      {
+        id: slugId(`${selectedCentre.id}-${reportForm.title}`),
+        centreId: selectedCentre.id,
+        title: reportForm.title,
+        details: reportForm.details,
+      },
+    ]);
+    setNotice(`Report saved locally for ${selectedCentre.name}.`);
+    closeModal();
   }
 
   if (!selectedCentre) {
@@ -83,9 +229,13 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
   const verifiedPois = selectedCentre.pois.filter(
     (poi) => poi.verifiedStatus === "verified",
   );
+  const centreReports = reports.filter(
+    (report) => report.centreId === selectedCentre.id,
+  );
   const reportedPois = selectedCentre.pois.filter(
     (poi) => poi.verifiedStatus === "reported",
   );
+  const reportCount = reportedPois.length + centreReports.length;
   const verificationScore = Math.round(
     (verifiedPois.length / Math.max(selectedCentre.pois.length, 1)) * 100,
   );
@@ -119,7 +269,11 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
                   Search centres, POIs, districts
                 </span>
               </div>
-              <button className="inline-flex items-center justify-center gap-2 rounded-lg bg-[var(--color-brand)] px-4 py-2 text-sm font-bold text-white">
+              <button
+                type="button"
+                onClick={() => openModal("poi")}
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-[var(--color-brand)] px-4 py-2 text-sm font-bold text-white"
+              >
                 <Plus className="h-4 w-4" />
                 Add POI
               </button>
@@ -130,6 +284,7 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
             {navItems.map((item, index) => (
               <button
                 key={item}
+                type="button"
                 className={`rounded-md px-3 py-2 text-sm font-bold ${
                   index === 0
                     ? "bg-[var(--color-brand-soft)] text-[var(--color-brand)]"
@@ -168,7 +323,7 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
                 }}
                 className="w-full appearance-none rounded-lg border border-[var(--color-line)] bg-white px-3 py-3 pr-10 text-sm font-bold outline-none focus:border-[var(--color-brand)]"
               >
-                {centres.map((centre) => (
+                {localCentres.map((centre) => (
                   <option key={centre.id} value={centre.id}>
                     {centre.name}
                   </option>
@@ -186,6 +341,21 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
               <InfoRow
                 icon={Navigation}
                 text={selectedCentre.landmark ?? "Landmark pending"}
+              />
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <ActionButton
+                icon={Plus}
+                label="Add Centre"
+                variant="light"
+                onClick={() => openModal("centre")}
+              />
+              <ActionButton
+                icon={Plus}
+                label="Add POI"
+                variant="dark"
+                onClick={() => openModal("poi")}
               />
             </div>
           </section>
@@ -226,7 +396,10 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
             <PanelTitle icon={Database} title="Nearby POIs" />
             <div className="mt-3 space-y-3">
               {visiblePois.map((poi) => (
-                <article key={poi.id} className="rounded-lg border border-[var(--color-line)] bg-white p-3">
+                <article
+                  key={poi.id}
+                  className="rounded-lg border border-[var(--color-line)] bg-white p-3"
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <h3 className="truncate font-bold text-[var(--color-ink)]">
@@ -270,20 +443,39 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <ActionButton icon={LocateFixed} label="Locate" variant="light" />
-              <ActionButton icon={Route} label="Route" variant="dark" />
-              <ActionButton icon={FileWarning} label="Report" variant="light" />
+              <ActionButton
+                icon={LocateFixed}
+                label="Locate"
+                variant="light"
+                onClick={() => setNotice("Locate action ready for browser geolocation integration.")}
+              />
+              <ActionButton
+                icon={Route}
+                label="Route"
+                variant="dark"
+                onClick={() => setNotice("Route engine placeholder ready. Next: OSRM or GraphHopper API.")}
+              />
+              <ActionButton
+                icon={FileWarning}
+                label="Report"
+                variant="light"
+                onClick={() => openModal("report")}
+              />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-px border-b border-[var(--color-line)] bg-[var(--color-line)] md:grid-cols-4">
-            <Metric label="Centres" value={centres.length.toString()} />
+            <Metric label="Centres" value={localCentres.length.toString()} />
             <Metric label="Total POIs" value={selectedCentre.pois.length.toString()} />
             <Metric label="Verified" value={`${verificationScore}%`} />
-            <Metric label="Reports" value={reportedPois.length.toString()} />
+            <Metric label="Reports" value={reportCount.toString()} />
           </div>
 
-          <div className="h-[calc(100vh-247px)] min-h-[560px]">
+          <div className="border-b border-[var(--color-line)] bg-[#fffaf0] px-4 py-2 text-sm font-semibold text-[#8a4b08]">
+            {notice}
+          </div>
+
+          <div className="h-[calc(100vh-286px)] min-h-[560px]">
             <MapPane
               centre={selectedCentre}
               activeCategories={selectedCategories}
@@ -321,7 +513,7 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
             <div className="mt-4 space-y-3">
               <ChecklistItem checked label="Railway and bus access" />
               <ChecklistItem checked={verificationScore >= 50} label="Core POIs verified" />
-              <ChecklistItem checked={reportedPois.length === 0} label="No open reports" />
+              <ChecklistItem checked={reportCount === 0} label="No open reports" />
               <ChecklistItem checked={Boolean(selectedCentre.gateInfo)} label="Gate info added" />
             </div>
           </section>
@@ -329,14 +521,102 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
           <section className="panel p-4">
             <PanelTitle icon={Route} title="Next Modules" />
             <div className="mt-4 grid gap-2">
-              <ModuleButton label="Admin CRUD" />
-              <ModuleButton label="Student suggestions" />
-              <ModuleButton label="Route engine" />
-              <ModuleButton label="CSV import" />
+              <ModuleButton label="Suggest place" onClick={() => openModal("suggestion")} />
+              <ModuleButton label="Report wrong info" onClick={() => openModal("report")} />
+              <ModuleButton label="Route engine" onClick={() => setNotice("Routing will use OSRM/GraphHopper after the DB flow is stable.")} />
+              <ModuleButton label="CSV import" onClick={() => setNotice("CSV import can map columns into exam_centres and pois tables.")} />
             </div>
           </section>
         </aside>
       </section>
+
+      {modalMode && (
+        <Modal title={modalTitle(modalMode)} onClose={closeModal}>
+          {modalMode === "centre" && (
+            <form onSubmit={addCentre} className="grid gap-3">
+              <Field label="Centre name" value={centreForm.name} onChange={(name) => setCentreForm((form) => ({ ...form, name }))} required />
+              <Field label="Address" value={centreForm.address} onChange={(address) => setCentreForm((form) => ({ ...form, address }))} required />
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="District" value={centreForm.district} onChange={(district) => setCentreForm((form) => ({ ...form, district }))} required />
+                <Field label="State" value={centreForm.state} onChange={(state) => setCentreForm((form) => ({ ...form, state }))} required />
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="Latitude" type="number" step="any" value={centreForm.latitude} onChange={(latitude) => setCentreForm((form) => ({ ...form, latitude }))} required />
+                <Field label="Longitude" type="number" step="any" value={centreForm.longitude} onChange={(longitude) => setCentreForm((form) => ({ ...form, longitude }))} required />
+              </div>
+              <Field label="Exam type" value={centreForm.examType} onChange={(examType) => setCentreForm((form) => ({ ...form, examType }))} required />
+              <Field label="Landmark" value={centreForm.landmark} onChange={(landmark) => setCentreForm((form) => ({ ...form, landmark }))} />
+              <Field label="Gate info" value={centreForm.gateInfo} onChange={(gateInfo) => setCentreForm((form) => ({ ...form, gateInfo }))} />
+              <FormActions onCancel={closeModal} submitLabel="Add centre" />
+            </form>
+          )}
+
+          {(modalMode === "poi" || modalMode === "suggestion") && (
+            <form
+              onSubmit={(event) =>
+                addPoi(event, modalMode === "poi" ? "manual" : "student")
+              }
+              className="grid gap-3"
+            >
+              <Field label="Place name" value={poiForm.name} onChange={(name) => setPoiForm((form) => ({ ...form, name }))} required />
+              <label className="grid gap-1 text-sm font-bold text-[var(--color-ink)]">
+                Category
+                <select
+                  value={poiForm.category}
+                  onChange={(event) =>
+                    setPoiForm((form) => ({
+                      ...form,
+                      category: event.target.value as PoiCategory,
+                    }))
+                  }
+                  className="rounded-lg border border-[var(--color-line)] px-3 py-2 text-sm outline-none focus:border-[var(--color-brand)]"
+                >
+                  {allCategories.map((category) => (
+                    <option key={category} value={category}>
+                      {categoryLabels[category]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <Field label="Address" value={poiForm.address} onChange={(address) => setPoiForm((form) => ({ ...form, address }))} required />
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="Latitude" type="number" step="any" value={poiForm.latitude} onChange={(latitude) => setPoiForm((form) => ({ ...form, latitude }))} required />
+                <Field label="Longitude" type="number" step="any" value={poiForm.longitude} onChange={(longitude) => setPoiForm((form) => ({ ...form, longitude }))} required />
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="Phone" value={poiForm.phone} onChange={(phone) => setPoiForm((form) => ({ ...form, phone }))} />
+                <Field label="Opening hours" value={poiForm.openingHours} onChange={(openingHours) => setPoiForm((form) => ({ ...form, openingHours }))} />
+              </div>
+              <FormActions
+                onCancel={closeModal}
+                submitLabel={modalMode === "poi" ? "Add verified POI" : "Send suggestion"}
+              />
+            </form>
+          )}
+
+          {modalMode === "report" && (
+            <form onSubmit={addReport} className="grid gap-3">
+              <Field label="Issue title" value={reportForm.title} onChange={(title) => setReportForm((form) => ({ ...form, title }))} required />
+              <label className="grid gap-1 text-sm font-bold text-[var(--color-ink)]">
+                Details
+                <textarea
+                  value={reportForm.details}
+                  onChange={(event) =>
+                    setReportForm((form) => ({
+                      ...form,
+                      details: event.target.value,
+                    }))
+                  }
+                  required
+                  rows={4}
+                  className="resize-none rounded-lg border border-[var(--color-line)] px-3 py-2 text-sm outline-none focus:border-[var(--color-brand)]"
+                />
+              </label>
+              <FormActions onCancel={closeModal} submitLabel="Save report" />
+            </form>
+          )}
+        </Modal>
+      )}
     </main>
   );
 }
@@ -399,14 +679,17 @@ function ActionButton({
   icon: Icon,
   label,
   variant,
+  onClick,
 }: {
   icon: typeof Route;
   label: string;
   variant: "dark" | "light";
+  onClick?: () => void;
 }) {
   return (
     <button
       type="button"
+      onClick={onClick}
       className={`inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-bold ${
         variant === "dark"
           ? "bg-[var(--color-brand)] text-white"
@@ -486,10 +769,148 @@ function ChecklistItem({ checked, label }: { checked: boolean; label: string }) 
   );
 }
 
-function ModuleButton({ label }: { label: string }) {
+function ModuleButton({
+  label,
+  onClick,
+}: {
+  label: string;
+  onClick: () => void;
+}) {
   return (
-    <button className="rounded-lg border border-[var(--color-line)] bg-white px-3 py-2 text-left text-sm font-bold text-[var(--color-ink)]">
+    <button
+      type="button"
+      onClick={onClick}
+      className="rounded-lg border border-[var(--color-line)] bg-white px-3 py-2 text-left text-sm font-bold text-[var(--color-ink)]"
+    >
       {label}
     </button>
+  );
+}
+
+function Modal({
+  title,
+  children,
+  onClose,
+}: {
+  title: string;
+  children: React.ReactNode;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-[#142132]/50 p-4">
+      <div className="w-full max-w-xl rounded-xl bg-white shadow-2xl">
+        <div className="flex items-center justify-between gap-3 border-b border-[var(--color-line)] px-5 py-4">
+          <h2 className="text-lg font-black text-[var(--color-ink)]">{title}</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="grid h-9 w-9 place-items-center rounded-lg border border-[var(--color-line)]"
+            aria-label="Close"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="max-h-[75vh] overflow-y-auto p-5">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  value,
+  onChange,
+  type = "text",
+  step,
+  required = false,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: string;
+  step?: string;
+  required?: boolean;
+}) {
+  return (
+    <label className="grid gap-1 text-sm font-bold text-[var(--color-ink)]">
+      {label}
+      <input
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        type={type}
+        step={step}
+        required={required}
+        className="rounded-lg border border-[var(--color-line)] px-3 py-2 text-sm outline-none focus:border-[var(--color-brand)]"
+      />
+    </label>
+  );
+}
+
+function FormActions({
+  onCancel,
+  submitLabel,
+}: {
+  onCancel: () => void;
+  submitLabel: string;
+}) {
+  return (
+    <div className="mt-2 flex justify-end gap-2">
+      <button
+        type="button"
+        onClick={onCancel}
+        className="rounded-lg border border-[var(--color-line)] px-4 py-2 text-sm font-bold"
+      >
+        Cancel
+      </button>
+      <button
+        type="submit"
+        className="rounded-lg bg-[var(--color-brand)] px-4 py-2 text-sm font-bold text-white"
+      >
+        {submitLabel}
+      </button>
+    </div>
+  );
+}
+
+function modalTitle(mode: Exclude<ModalMode, null>) {
+  const titles = {
+    centre: "Add exam centre",
+    poi: "Add verified POI",
+    suggestion: "Suggest nearby place",
+    report: "Report wrong information",
+  };
+
+  return titles[mode];
+}
+
+function slugId(value: string) {
+  const slug = value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+
+  return `${slug || "item"}-${Date.now()}`;
+}
+
+function distanceBetweenMeters(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number,
+) {
+  const earthRadius = 6371000;
+  const toRad = (value: number) => (value * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+
+  return Math.round(
+    earthRadius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)),
   );
 }
