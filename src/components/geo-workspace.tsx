@@ -348,7 +348,7 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
 
             <form onSubmit={applyManualLocation} className="mt-3 grid gap-3">
               <div className="grid gap-3 sm:grid-cols-2">
-                <label className="grid gap-1 text-sm font-bold text-[var(--color-ink)]">
+                <label className="grid min-w-0 gap-1 text-sm font-bold text-[var(--color-ink)]">
                   Latitude
                   <input
                     type="number"
@@ -360,10 +360,10 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
                         latitude: event.target.value,
                       }))
                     }
-                    className="rounded-lg border border-[var(--color-line)] px-3 py-2 text-sm outline-none focus:border-[var(--color-brand)]"
+                    className="w-full min-w-0 rounded-lg border border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] px-3 py-2 text-sm outline-none focus:border-[var(--color-brand)]"
                   />
                 </label>
-                <label className="grid gap-1 text-sm font-bold text-[var(--color-ink)]">
+                <label className="grid min-w-0 gap-1 text-sm font-bold text-[var(--color-ink)]">
                   Longitude
                   <input
                     type="number"
@@ -375,13 +375,13 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
                         longitude: event.target.value,
                       }))
                     }
-                    className="rounded-lg border border-[var(--color-line)] px-3 py-2 text-sm outline-none focus:border-[var(--color-brand)]"
+                    className="w-full min-w-0 rounded-lg border border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] px-3 py-2 text-sm outline-none focus:border-[var(--color-brand)]"
                   />
                 </label>
               </div>
               <button
                 type="submit"
-                className="rounded-full border border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] px-4 py-2 text-sm font-bold text-[var(--color-ink)]"
+                className="w-full rounded-full border border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] px-4 py-2 text-sm font-bold text-[var(--color-ink)]"
               >
                 Set manual location
               </button>
