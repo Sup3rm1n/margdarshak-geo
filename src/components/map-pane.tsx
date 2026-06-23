@@ -57,7 +57,11 @@ function popupHtml(title: string, lines: string[]) {
   `;
 }
 
-export function MapPane({ centre, activeCategories, userLocation }: MapPaneProps) {
+export function MapPane({
+  centre,
+  activeCategories,
+  userLocation,
+}: MapPaneProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const markersRef = useRef<Marker[]>([]);
@@ -134,10 +138,10 @@ export function MapPane({ centre, activeCategories, userLocation }: MapPaneProps
         .setLngLat([userLocation.longitude, userLocation.latitude])
         .setPopup(
           new maplibregl.Popup({ offset: 18 }).setHTML(
-          popupHtml(userLocation.label, ["Current location selected"]),
-        ),
-      )
-      .addTo(map);
+            popupHtml(userLocation.label, ["Current location selected"]),
+          ),
+        )
+        .addTo(map);
 
       markersRef.current.push(userMarker);
     }
@@ -162,5 +166,10 @@ export function MapPane({ centre, activeCategories, userLocation }: MapPaneProps
     }
   }, [centre, userLocation, visiblePois]);
 
-  return <div ref={containerRef} className="h-full min-h-[420px] w-full" />;
+  return (
+    <div
+      ref={containerRef}
+      className="h-full min-h-[420px] w-full overflow-hidden rounded-b-xl"
+    />
+  );
 }

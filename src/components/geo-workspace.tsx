@@ -236,7 +236,7 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
 
   return (
     <main className="min-h-screen bg-[var(--color-app)] text-[var(--color-ink)]">
-      <header className="border-b border-[var(--color-line)] bg-white">
+      <header className="border-b border-[var(--color-line)] bg-[rgba(7,16,28,0.82)] backdrop-blur-xl">
         <div className="mx-auto flex max-w-[1500px] flex-col gap-3 px-4 py-3 xl:px-6">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-center gap-3">
@@ -256,7 +256,7 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
               </div>
             </div>
 
-            <div className="flex min-w-0 items-center gap-2 rounded-lg border border-[var(--color-line)] bg-[var(--color-soft)] px-3 py-2">
+            <div className="flex min-w-0 items-center gap-2 rounded-lg border border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] px-3 py-2">
               <Search className="h-4 w-4 shrink-0 text-[var(--color-muted)]" />
               <span className="truncate text-sm font-medium text-[var(--color-muted)]">
                 Patna centres and nearby POIs only
@@ -282,7 +282,7 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
             </div>
 
             <div className="relative mt-3">
-              <div className="mb-2 flex items-center gap-2 rounded-lg border border-[var(--color-line)] bg-[var(--color-soft)] px-3 py-2">
+              <div className="mb-2 flex items-center gap-2 rounded-lg border border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] px-3 py-2">
                 <Search className="h-4 w-4 shrink-0 text-[var(--color-muted)]" />
                 <input
                   value={centreSearch}
@@ -298,7 +298,7 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
                   setSelectedCentreId(event.target.value);
                   setActiveCategories([]);
                 }}
-                className="w-full appearance-none rounded-lg border border-[var(--color-line)] bg-white px-3 py-3 pr-10 text-sm font-bold outline-none focus:border-[var(--color-brand)]"
+                className="w-full appearance-none rounded-lg border border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] px-3 py-3 pr-10 text-sm font-bold outline-none focus:border-[var(--color-brand)]"
               >
                 {centreOptions.map((centre) => (
                   <option key={centre.id} value={centre.id}>
@@ -340,7 +340,7 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
               type="button"
               onClick={useBrowserLocation}
               disabled={isLocating}
-              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--color-brand)] px-4 py-3 text-sm font-bold text-white disabled:opacity-60"
+              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[var(--color-brand)] px-4 py-3 text-sm font-black text-[#061019] shadow-[0_10px_30px_rgba(118,221,255,0.18)] transition hover:translate-y-[-1px] disabled:opacity-60"
             >
               <LocateFixed className="h-4 w-4" />
               {isLocating ? "Locating..." : "Use my location"}
@@ -381,7 +381,7 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
               </div>
               <button
                 type="submit"
-                className="rounded-lg border border-[var(--color-line)] bg-white px-4 py-2 text-sm font-bold text-[var(--color-ink)]"
+                className="rounded-full border border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] px-4 py-2 text-sm font-bold text-[var(--color-ink)]"
               >
                 Set manual location
               </button>
@@ -398,7 +398,7 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
               {nearestPois.map((poi, index) => (
                 <article
                   key={poi.id}
-                  className="rounded-lg border border-[var(--color-line)] bg-white p-3"
+                  className="rounded-xl border border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] p-3"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -447,7 +447,7 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
         </aside>
 
         <section className="panel overflow-hidden">
-          <div className="flex flex-col gap-3 border-b border-[var(--color-line)] bg-white p-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-3 border-b border-[var(--color-line)] bg-[rgba(255,255,255,0.02)] p-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="truncate text-lg font-bold text-[var(--color-ink)]">
@@ -463,7 +463,7 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
               <button
                 type="button"
                 onClick={openFullMapForCentre}
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--color-line)] bg-white px-3 py-2 text-sm font-bold text-[var(--color-ink)]"
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] px-3 py-2 text-sm font-bold text-[var(--color-ink)]"
               >
                 <Map className="h-4 w-4" />
                 Open full map
@@ -471,7 +471,7 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
               <button
                 type="button"
                 onClick={shareCurrentCentre}
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--color-line)] bg-white px-3 py-2 text-sm font-bold text-[var(--color-ink)]"
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] px-3 py-2 text-sm font-bold text-[var(--color-ink)]"
               >
                 <Share2 className="h-4 w-4" />
                 Share centre
@@ -479,7 +479,7 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
               <button
                 type="button"
                 onClick={shareCurrentCentre}
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-[var(--color-brand)] px-3 py-2 text-sm font-bold text-white"
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-[var(--color-accent)] px-3 py-2 text-sm font-black text-[#061019]"
               >
                 <Copy className="h-4 w-4" />
                 Copy link
@@ -500,14 +500,14 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
             />
           </div>
 
-          <div className="border-b border-[var(--color-line)] bg-[#fffaf0] px-4 py-2 text-sm font-semibold text-[#8a4b08]">
+          <div className="border-b border-[var(--color-line)] bg-[rgba(255,215,122,0.08)] px-4 py-2 text-sm font-semibold text-[#ffd77a]">
             {userDistanceMeters == null
               ? "Set your location to see how far the centre is from you."
               : `You are about ${Math.round(userDistanceMeters / 100) / 10} km from this centre.`
             }
           </div>
           {shareStatus && (
-            <div className="border-b border-[var(--color-line)] bg-[#f2f7ff] px-4 py-2 text-sm font-semibold text-[var(--color-brand)]">
+            <div className="border-b border-[var(--color-line)] bg-[rgba(118,221,255,0.08)] px-4 py-2 text-sm font-semibold text-[var(--color-brand)]">
               {shareStatus}
             </div>
           )}
@@ -555,8 +555,8 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
                     onClick={() => toggleCategory(category)}
                     className={`rounded-md border px-3 py-2 text-xs font-bold ${
                       isActive
-                        ? "border-[var(--color-brand)] bg-[var(--color-brand-soft)] text-[var(--color-brand)]"
-                        : "border-[var(--color-line)] bg-white text-[var(--color-muted)]"
+                      ? "border-[var(--color-brand)] bg-[var(--color-brand-soft)] text-[var(--color-brand)]"
+                        : "border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] text-[var(--color-muted)]"
                     }`}
                   >
                     {categoryLabels[category]}
@@ -572,7 +572,7 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
               {visiblePois.map((poi) => (
                 <article
                   key={poi.id}
-                  className="rounded-lg border border-[var(--color-line)] bg-white p-3"
+                  className="rounded-xl border border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] p-3"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -657,7 +657,7 @@ function PanelTitle({
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-white px-4 py-3">
+    <div className="bg-[rgba(255,255,255,0.04)] px-4 py-3">
       <div className="text-xl font-black text-[var(--color-ink)]">{value}</div>
       <div className="mt-0.5 text-xs font-bold uppercase tracking-[0.08em] text-[var(--color-muted)]">
         {label}
@@ -668,7 +668,7 @@ function Metric({ label, value }: { label: string; value: string }) {
 
 function MiniStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md bg-[var(--color-soft)] px-2 py-2">
+    <div className="rounded-md bg-[rgba(255,255,255,0.04)] px-2 py-2">
       <div className="font-black text-[var(--color-ink)]">{value}</div>
       <div className="mt-1 text-[var(--color-muted)]">{label}</div>
     </div>
@@ -683,9 +683,9 @@ function StatusPill({
   tone: "blue" | "green" | "amber";
 }) {
   const colors = {
-    blue: "bg-[var(--color-brand-soft)] text-[var(--color-brand)]",
-    green: "bg-[#e8f7ef] text-[var(--color-success)]",
-    amber: "bg-[#fff4df] text-[var(--color-warn)]",
+    blue: "bg-[rgba(118,221,255,0.12)] text-[var(--color-brand)]",
+    green: "bg-[rgba(121,230,187,0.12)] text-[var(--color-success)]",
+    amber: "bg-[rgba(255,215,122,0.14)] text-[var(--color-warn)]",
   };
 
   return (
@@ -705,13 +705,13 @@ function QualityRow({
   tone: "green" | "amber" | "blue";
 }) {
   const colors = {
-    green: "text-[var(--color-success)] bg-[#e8f7ef]",
-    amber: "text-[var(--color-warn)] bg-[#fff4df]",
-    blue: "text-[var(--color-brand)] bg-[var(--color-brand-soft)]",
+    green: "text-[var(--color-success)] bg-[rgba(121,230,187,0.12)]",
+    amber: "text-[var(--color-warn)] bg-[rgba(255,215,122,0.12)]",
+    blue: "text-[var(--color-brand)] bg-[rgba(118,221,255,0.12)]",
   };
 
   return (
-    <div className="flex items-center justify-between gap-3 rounded-lg border border-[var(--color-line)] bg-white p-3">
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] p-3">
       <span className="text-sm font-bold text-[var(--color-ink)]">{label}</span>
       <span className={`grid min-w-12 place-items-center rounded-md px-2 py-1 text-sm font-black ${colors[tone]}`}>
         {value}
