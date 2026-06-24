@@ -10,6 +10,7 @@ import {
   LocateFixed,
   MapPin,
   Navigation,
+  Satellite,
   Search,
   ShieldCheck,
   Sparkles,
@@ -56,6 +57,7 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
     longitude: "",
   });
   const [centreSearch, setCentreSearch] = useState("");
+  const [mapMode, setMapMode] = useState<"road" | "satellite">("road");
   const [locationStatus, setLocationStatus] = useState(
     "Use your current location or enter coordinates to measure distance to the centre.",
   );
@@ -232,6 +234,17 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
     const url = new URL(FULL_MAP_PATH, window.location.origin);
     url.searchParams.set("centre", selectedCentre.id);
     window.location.assign(url.toString());
+  }
+
+  function openStreetView() {
+    const url = new URL("https://www.google.com/maps/@");
+    url.searchParams.set("api", "1");
+    url.searchParams.set("map_action", "pano");
+    url.searchParams.set(
+      "viewpoint",
+      `${selectedCentre.latitude},${selectedCentre.longitude}`,
+    );
+    window.open(url.toString(), "_blank", "noopener,noreferrer");
   }
 
   return (
@@ -460,6 +473,32 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
+              <div className="inline-flex rounded-full border border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] p-1">
+                <button
+                  type="button"
+                  onClick={() => setMapMode("road")}
+                  className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-bold transition ${
+                    mapMode === "road"
+                      ? "bg-[var(--color-brand)] text-[#061019]"
+                      : "text-[var(--color-muted)]"
+                  }`}
+                >
+                  <Map className="h-4 w-4" />
+                  Road
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMapMode("satellite")}
+                  className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-bold transition ${
+                    mapMode === "satellite"
+                      ? "bg-[var(--color-brand)] text-[#061019]"
+                      : "text-[var(--color-muted)]"
+                  }`}
+                >
+                  <Satellite className="h-4 w-4" />
+                  Satellite
+                </button>
+              </div>
               <button
                 type="button"
                 onClick={openFullMapForCentre}
@@ -467,6 +506,14 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
               >
                 <Map className="h-4 w-4" />
                 Open full map
+              </button>
+              <button
+                type="button"
+                onClick={openStreetView}
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] px-3 py-2 text-sm font-bold text-[var(--color-ink)]"
+              >
+                <Navigation className="h-4 w-4" />
+                Street View
               </button>
               <button
                 type="button"
@@ -517,6 +564,7 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
               centre={selectedCentre}
               activeCategories={selectedCategories}
               userLocation={userLocation}
+              mapMode={mapMode}
             />
           </div>
         </section>

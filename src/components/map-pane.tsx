@@ -19,9 +19,10 @@ type MapPaneProps = {
   centre: ExamCentre;
   activeCategories: PoiCategory[];
   userLocation?: LocationPoint | null;
+  mapMode?: "road" | "satellite";
 };
 
-const defaultRasterStyle: StyleSpecification = {
+const roadStyle: StyleSpecification = {
   version: 8,
   sources: {
     osm: {
@@ -36,6 +37,27 @@ const defaultRasterStyle: StyleSpecification = {
       id: "osm",
       type: "raster",
       source: "osm",
+    },
+  ],
+};
+
+const satelliteStyle: StyleSpecification = {
+  version: 8,
+  sources: {
+    esri: {
+      type: "raster",
+      tiles: [
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      ],
+      tileSize: 256,
+      attribution: "Esri, Maxar, Earthstar Geographics",
+    },
+  },
+  layers: [
+    {
+      id: "esri",
+      type: "raster",
+      source: "esri",
     },
   ],
 };
@@ -61,6 +83,7 @@ export function MapPane({
   centre,
   activeCategories,
   userLocation,
+  mapMode = "road",
 }: MapPaneProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -79,7 +102,7 @@ export function MapPane({
 
     mapRef.current = new maplibregl.Map({
       container: containerRef.current,
-      style: defaultRasterStyle,
+      style: mapMode === "satellite" ? satelliteStyle : roadStyle,
       center: [centre.longitude, centre.latitude],
       zoom: 14,
       attributionControl: false,
@@ -98,7 +121,7 @@ export function MapPane({
       mapRef.current?.remove();
       mapRef.current = null;
     };
-  }, [centre.latitude, centre.longitude]);
+  }, [centre.latitude, centre.longitude, mapMode]);
 
   useEffect(() => {
     const map = mapRef.current;
