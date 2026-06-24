@@ -190,9 +190,36 @@ export function MapPane({
   }, [centre, userLocation, visiblePois]);
 
   return (
-    <div
-      ref={containerRef}
-      className="h-full min-h-[420px] w-full overflow-hidden rounded-b-xl"
-    />
+    <div className="relative h-full min-h-[420px] w-full overflow-hidden rounded-b-xl">
+      <div ref={containerRef} className="h-full min-h-[420px] w-full" />
+
+      <div className="pointer-events-none absolute left-4 top-4 z-10 max-w-[320px]">
+        <div className="pointer-events-auto rounded-xl border border-[rgba(255,255,255,0.14)] bg-[rgba(7,16,28,0.72)] px-4 py-3 text-[var(--color-ink)] backdrop-blur-xl">
+          <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-[var(--color-brand)]">
+            <span className="h-2 w-2 rounded-full bg-[var(--color-success)]" />
+            Centre confirmed
+          </div>
+          <div className="mt-1 text-base font-black leading-tight">
+            {centre.name}
+          </div>
+          <div className="mt-1 text-sm text-[var(--color-muted)]">
+            {centre.district}, {centre.state}
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <span className="rounded-full border border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] px-2.5 py-1 text-xs font-bold text-[var(--color-ink)]">
+              {mapMode === "satellite" ? "Satellite view" : "Road view"}
+            </span>
+            <span className="rounded-full border border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] px-2.5 py-1 text-xs font-bold text-[var(--color-ink)]">
+              {activeCategories.length} categories
+            </span>
+            {userLocation && (
+              <span className="rounded-full border border-[var(--color-line)] bg-[rgba(121,230,187,0.12)] px-2.5 py-1 text-xs font-bold text-[var(--color-success)]">
+                Location set
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
