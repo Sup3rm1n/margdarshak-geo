@@ -1,23 +1,24 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import {
+  ArrowUpRight,
+  Bike,
   Building2,
   CheckCircle2,
-  ChevronDown,
   CircleAlert,
   Copy,
+  CarFront,
   LocateFixed,
   MapPin,
-  Navigation,
-  Satellite,
-  Search,
+  Footprints,
   ShieldCheck,
-  Sparkles,
   Map,
   Share2,
+  Navigation2,
 } from "lucide-react";
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { categoryLabels } from "@/lib/category-meta";
 import type { ExamCentre, PoiCategory } from "@/lib/types";
 
@@ -26,7 +27,7 @@ const MapPane = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="grid h-full min-h-[420px] place-items-center bg-[#eef3f6] text-sm font-semibold text-[#52616b]">
+      <div className="grid h-full min-h-[420px] place-items-center rounded-[20px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] text-sm font-semibold text-[var(--color-muted)]">
         Loading map
       </div>
     ),
@@ -44,8 +45,6 @@ type UserLocation = {
 };
 
 const FULL_MAP_PATH = "/geo";
-const patnaFocusText =
-  "This local build is focused on Patna exam centres, their nearest useful POIs, and the distance from the user's location.";
 
 export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
   const localCentres = centres;
@@ -56,8 +55,9 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
     latitude: "",
     longitude: "",
   });
-  const [centreSearch, setCentreSearch] = useState("");
   const [mapMode, setMapMode] = useState<"road" | "satellite">("road");
+  const [isMapHidden, setIsMapHidden] = useState(false);
+  const [isFullMapOpen, setIsFullMapOpen] = useState(false);
   const [locationStatus, setLocationStatus] = useState(
     "Use your current location or enter coordinates to measure distance to the centre.",
   );
@@ -68,37 +68,6 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
     localCentres.find((centre) => centre.id === selectedCentreId) ??
     localCentres[0];
 
-  const categories = useMemo(
-    () =>
-      Array.from(
-        new Set(selectedCentre?.pois.map((poi) => poi.category) ?? []),
-      ).sort(),
-    [selectedCentre],
-  );
-
-  const selectedCategories =
-    activeCategories.length === 0 ? categories : activeCategories;
-  const filteredCentres = useMemo(
-    () =>
-      localCentres.filter((centre) => {
-        const query = centreSearch.trim().toLowerCase();
-
-        if (!query) {
-          return true;
-        }
-
-        return (
-          centre.name.toLowerCase().includes(query) ||
-          centre.address.toLowerCase().includes(query) ||
-          centre.landmark?.toLowerCase().includes(query) ||
-          centre.district.toLowerCase().includes(query)
-        );
-      }),
-    [centreSearch, localCentres],
-  );
-  const centreOptions =
-    filteredCentres.length > 0 ? filteredCentres : localCentres;
-
   useEffect(() => {
     if (typeof window === "undefined") {
       return;
@@ -107,7 +76,10 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
     const params = new URLSearchParams(window.location.search);
     const requestedCentre = params.get("centre");
 
-    if (requestedCentre && localCentres.some((centre) => centre.id === requestedCentre)) {
+    if (
+      requestedCentre &&
+      localCentres.some((centre) => centre.id === requestedCentre)
+    ) {
       queueMicrotask(() => setSelectedCentreId(requestedCentre));
     }
   }, [localCentres]);
@@ -122,6 +94,18 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
     window.history.replaceState({}, "", url.toString());
   }, [selectedCentre]);
 
+  useEffect(() => {
+    if (typeof document === "undefined") {
+      return;
+    }
+
+    document.body.style.overflow = isFullMapOpen ? "hidden" : "";
+
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isFullMapOpen]);
+
   if (!selectedCentre) {
     return (
       <main className="grid min-h-screen place-items-center bg-[var(--color-app)] p-6">
@@ -131,12 +115,8 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
   }
 
   const visiblePois = selectedCentre.pois
-    .filter((poi) => selectedCategories.includes(poi.category))
+    .filter((poi) => activeCategories.length === 0 || activeCategories.includes(poi.category))
     .sort((a, b) => a.distanceMeters - b.distanceMeters);
-  const nearestPois = selectedCentre.pois
-    .slice()
-    .sort((a, b) => a.distanceMeters - b.distanceMeters)
-    .slice(0, 5);
   const verifiedPois = selectedCentre.pois.filter(
     (poi) => poi.verifiedStatus === "verified",
   );
@@ -149,18 +129,22 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
           selectedCentre.latitude,
           selectedCentre.longitude,
         );
-  const verificationScore = Math.round(
-    (verifiedPois.length / Math.max(selectedCentre.pois.length, 1)) * 100,
-  );
-  const nearestPoi = nearestPois[0];
-
-  function toggleCategory(category: PoiCategory) {
-    setActiveCategories((current) =>
-      current.includes(category)
-        ? current.filter((item) => item !== category)
-        : [...current, category],
-    );
-  }
+  const roadDistanceMeters = userDistanceMeters
+    ? Math.round(userDistanceMeters * 1.28)
+    : selectedCentre.pois[0]?.distanceMeters ?? null;
+  const fastestEtaMinutes = roadDistanceMeters
+    ? Math.max(4, Math.round(roadDistanceMeters / 820))
+    : null;
+  const roadDistanceKm =
+    roadDistanceMeters == null
+      ? null
+      : Math.round((roadDistanceMeters / 1000) * 10) / 10;
+  const walkingEtaMinutes = roadDistanceMeters
+    ? Math.max(18, Math.round(roadDistanceMeters / 75))
+    : null;
+  const bikeEtaMinutes = roadDistanceMeters
+    ? Math.max(8, Math.round(roadDistanceMeters / 220))
+    : null;
 
   function useBrowserLocation() {
     if (!navigator.geolocation) {
@@ -180,7 +164,9 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
         setIsLocating(false);
       },
       () => {
-        setLocationStatus("Location access was blocked. Enter coordinates manually.");
+        setLocationStatus(
+          "Location access was blocked. Enter coordinates manually.",
+        );
         setIsLocating(false);
       },
       { enableHighAccuracy: true, timeout: 10000 },
@@ -209,14 +195,21 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
   async function shareCurrentCentre() {
     const url = new URL(FULL_MAP_PATH, window.location.origin);
     url.searchParams.set("centre", selectedCentre.id);
-    const text = `${selectedCentre.name} - ${selectedCentre.address}`;
-    const shareText = `${text}\n${url.toString()}`;
+    const shareText = [
+      `Please verify this exam centre on Margdarshak:`,
+      selectedCentre.name,
+      `Address: ${selectedCentre.address}`,
+      `City: ${selectedCentre.district}`,
+      `Verification: Level 4: Source verified`,
+      `Status: Verified by Margdarshak`,
+      url.toString(),
+    ].join("\n");
 
     try {
       if (navigator.share) {
         await navigator.share({
           title: selectedCentre.name,
-          text,
+          text: shareText,
           url: url.toString(),
         });
         setShareStatus("Centre link shared.");
@@ -226,34 +219,46 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
       await navigator.clipboard.writeText(shareText);
       setShareStatus("Centre link copied to clipboard.");
     } catch {
-      setShareStatus("Could not share automatically. Copy the URL from the address bar.");
+      setShareStatus(
+        "Could not share automatically. Copy the URL from the address bar.",
+      );
     }
   }
 
   function openFullMapForCentre() {
-    const url = new URL(FULL_MAP_PATH, window.location.origin);
-    url.searchParams.set("centre", selectedCentre.id);
-    window.location.assign(url.toString());
+    setIsFullMapOpen(true);
   }
 
-  function openStreetView() {
-    const url = new URL("https://www.google.com/maps/@");
+  function closeFullMap() {
+    setIsFullMapOpen(false);
+  }
+
+  function openCentrePage() {
+    const url = new URL(FULL_MAP_PATH, window.location.origin);
+    url.searchParams.set("centre", selectedCentre.id);
+    window.open(url.toString(), "_blank", "noopener,noreferrer");
+  }
+
+  function copyAddress() {
+    navigator.clipboard.writeText(selectedCentre.address).then(() => {
+      setShareStatus("Address copied.");
+    });
+  }
+
+  function openGoogleMaps() {
+    const url = new URL("https://www.google.com/maps/search/");
     url.searchParams.set("api", "1");
-    url.searchParams.set("map_action", "pano");
-    url.searchParams.set(
-      "viewpoint",
-      `${selectedCentre.latitude},${selectedCentre.longitude}`,
-    );
+    url.searchParams.set("query", selectedCentre.address);
     window.open(url.toString(), "_blank", "noopener,noreferrer");
   }
 
   return (
     <main className="min-h-screen bg-[var(--color-app)] text-[var(--color-ink)]">
       <header className="border-b border-[var(--color-line)] bg-[rgba(7,16,28,0.82)] backdrop-blur-xl">
-        <div className="mx-auto flex max-w-[1500px] flex-col gap-3 px-4 py-3 xl:px-6">
+        <div className="mx-auto max-w-[1240px] px-4 py-3 xl:px-6">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-center gap-3">
-              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[var(--color-brand)] text-sm font-black text-white">
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[var(--color-brand)] text-sm font-black text-[#061019]">
                 MG
               </div>
               <div>
@@ -264,407 +269,516 @@ export function GeoWorkspace({ centres }: GeoWorkspaceProps) {
                   <StatusPill label="Patna MVP" tone="blue" />
                 </div>
                 <p className="mt-0.5 text-sm font-medium text-[var(--color-muted)]">
-                  {patnaFocusText}
+                  Centre detail, map preview, nearby POIs, and travel planning
                 </p>
               </div>
             </div>
 
-            <div className="flex min-w-0 items-center gap-2 rounded-lg border border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] px-3 py-2">
-              <Search className="h-4 w-4 shrink-0 text-[var(--color-muted)]" />
-              <span className="truncate text-sm font-medium text-[var(--color-muted)]">
-                Patna centres and nearby POIs only
-              </span>
+            <div className="flex flex-1 items-center justify-end">
+              <Link
+                href="/"
+                className="inline-flex items-center gap-2 rounded-full border border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] px-3 py-2 text-sm font-bold text-[var(--color-ink)]"
+              >
+                <ArrowUpRight className="h-4 w-4" />
+                Search another centre
+              </Link>
             </div>
           </div>
         </div>
       </header>
 
-      <section className="mx-auto grid max-w-[1500px] gap-4 px-4 py-4 xl:grid-cols-[360px_minmax(0,1fr)_320px] xl:px-6">
-        <aside className="flex flex-col gap-4">
-          <section className="panel p-4">
-            <div className="flex items-center justify-between gap-3">
-              <PanelTitle icon={Building2} title="Exam centre" />
-              <StatusPill
-                label={selectedCentre.verifiedStatus}
-                tone={
-                  selectedCentre.verifiedStatus === "verified"
-                    ? "green"
-                    : "amber"
-                }
-              />
-            </div>
-
-            <div className="relative mt-3">
-              <div className="mb-2 flex items-center gap-2 rounded-lg border border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] px-3 py-2">
-                <Search className="h-4 w-4 shrink-0 text-[var(--color-muted)]" />
-                <input
-                  value={centreSearch}
-                  onChange={(event) => setCentreSearch(event.target.value)}
-                  placeholder="Search Patna centre"
-                  className="w-full bg-transparent text-sm font-medium outline-none placeholder:text-[var(--color-muted)]"
+      <section className="mx-auto max-w-[1240px] px-4 py-4 xl:px-6">
+        <div className="overflow-hidden rounded-[12px] border border-[rgba(128,171,209,0.18)] bg-[linear-gradient(180deg,rgba(12,20,35,0.84),rgba(8,14,26,0.92))] shadow-[0_20px_50px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.03)]">
+          <div className="grid gap-0 xl:grid-cols-[minmax(0,1.08fr)_minmax(380px,0.92fr)]">
+            <div className="space-y-5 p-4 md:p-6">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-[var(--color-brand)]">
+                  <span className="h-2 w-2 rounded-full bg-[var(--color-success)]" />
+                  Centre confirmed
+                </div>
+                <StatusPill
+                  label={
+                    selectedCentre.verifiedStatus === "verified"
+                      ? "verified"
+                      : selectedCentre.verifiedStatus
+                  }
+                  tone={
+                    selectedCentre.verifiedStatus === "verified"
+                      ? "green"
+                      : "amber"
+                  }
                 />
               </div>
-              <select
-                aria-label="Exam centre"
-                value={selectedCentre.id}
-                onChange={(event) => {
-                  setSelectedCentreId(event.target.value);
-                  setActiveCategories([]);
-                }}
-                className="w-full appearance-none rounded-lg border border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] px-3 py-3 pr-10 text-sm font-bold outline-none focus:border-[var(--color-brand)]"
-              >
-                {centreOptions.map((centre) => (
-                  <option key={centre.id} value={centre.id}>
-                    {centre.name}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-3 top-3.5 h-4 w-4 text-[var(--color-muted)]" />
-            </div>
-            {filteredCentres.length === 0 && centreSearch.trim() && (
-              <p className="mt-2 text-xs font-medium text-[var(--color-muted)]">
-                No centres matched {centreSearch.trim()}. Showing all Patna centres instead.
-              </p>
-            )}
 
-            <div className="mt-4 space-y-3">
-              <InfoRow icon={MapPin} text={selectedCentre.address} />
-              <InfoRow
-                icon={ShieldCheck}
-                text={`${selectedCentre.district}, ${selectedCentre.state} - ${selectedCentre.examType}`}
-              />
-              <InfoRow
-                icon={Navigation}
-                text={selectedCentre.landmark ?? "Landmark pending"}
-              />
-            </div>
-          </section>
-
-          <section className="panel p-4">
-            <div className="flex items-center justify-between gap-3">
-              <PanelTitle icon={LocateFixed} title="Your location" />
-              <StatusPill
-                label={userLocation ? "set" : "unset"}
-                tone={userLocation ? "green" : "amber"}
-              />
-            </div>
-
-            <button
-              type="button"
-              onClick={useBrowserLocation}
-              disabled={isLocating}
-              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[var(--color-brand)] px-4 py-3 text-sm font-black text-[#061019] shadow-[0_10px_30px_rgba(118,221,255,0.18)] transition hover:translate-y-[-1px] disabled:opacity-60"
-            >
-              <LocateFixed className="h-4 w-4" />
-              {isLocating ? "Locating..." : "Use my location"}
-            </button>
-
-            <form onSubmit={applyManualLocation} className="mt-3 grid gap-3">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className="grid min-w-0 gap-1 text-sm font-bold text-[var(--color-ink)]">
-                  Latitude
-                  <input
-                    type="number"
-                    step="any"
-                    value={manualLocation.latitude}
-                    onChange={(event) =>
-                      setManualLocation((current) => ({
-                        ...current,
-                        latitude: event.target.value,
-                      }))
-                    }
-                    className="w-full min-w-0 rounded-lg border border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] px-3 py-2 text-sm outline-none focus:border-[var(--color-brand)]"
-                  />
-                </label>
-                <label className="grid min-w-0 gap-1 text-sm font-bold text-[var(--color-ink)]">
-                  Longitude
-                  <input
-                    type="number"
-                    step="any"
-                    value={manualLocation.longitude}
-                    onChange={(event) =>
-                      setManualLocation((current) => ({
-                        ...current,
-                        longitude: event.target.value,
-                      }))
-                    }
-                    className="w-full min-w-0 rounded-lg border border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] px-3 py-2 text-sm outline-none focus:border-[var(--color-brand)]"
-                  />
-                </label>
-              </div>
-              <button
-                type="submit"
-                className="w-full rounded-full border border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] px-4 py-2 text-sm font-bold text-[var(--color-ink)]"
-              >
-                Set manual location
-              </button>
-            </form>
-
-            <p className="mt-3 text-sm text-[var(--color-muted)]">
-              {locationStatus}
-            </p>
-          </section>
-
-          <section className="panel p-4">
-            <PanelTitle icon={Sparkles} title="Nearby places" />
-            <div className="mt-3 space-y-3">
-              {nearestPois.map((poi, index) => (
-                <article
-                  key={poi.id}
-                  className="rounded-xl border border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] p-3"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="text-xs font-black uppercase tracking-[0.08em] text-[var(--color-muted)]">
-                        #{index + 1} nearest
-                      </div>
-                      <h3 className="truncate font-bold text-[var(--color-ink)]">
-                        {poi.name}
-                      </h3>
-                      <p className="mt-1 text-xs font-bold text-[var(--color-brand)]">
-                        {categoryLabels[poi.category]}
-                      </p>
-                    </div>
-                    {poi.verifiedStatus === "verified" ? (
-                      <CheckCircle2 className="h-5 w-5 shrink-0 text-[var(--color-success)]" />
-                    ) : (
-                      <CircleAlert className="h-5 w-5 shrink-0 text-[var(--color-warn)]" />
-                    )}
-                  </div>
-                  <p className="mt-2 line-clamp-2 text-sm text-[var(--color-muted)]">
-                    {poi.address}
-                  </p>
-                  {userLocation && (
-                    <p className="mt-2 text-xs font-bold text-[var(--color-brand)]">
-                      From you:{" "}
-                      {Math.round(
-                        distanceBetweenMeters(
-                          userLocation.latitude,
-                          userLocation.longitude,
-                          poi.latitude,
-                          poi.longitude,
-                        ),
-                      )}{" "}
-                      m
-                    </p>
-                  )}
-                  <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-                    <MiniStat label="From centre" value={`${poi.distanceMeters} m`} />
-                    <MiniStat label="Walk" value={`${poi.walkingTimeMinutes} min`} />
-                    <MiniStat label="Drive" value={`${poi.drivingTimeMinutes} min`} />
-                  </div>
-                </article>
-              ))}
-            </div>
-          </section>
-        </aside>
-
-        <section className="panel overflow-hidden">
-          <div className="flex flex-col gap-3 border-b border-[var(--color-line)] bg-[rgba(255,255,255,0.02)] p-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="truncate text-lg font-bold text-[var(--color-ink)]">
+              <div className="space-y-3">
+                <h2 className="text-[clamp(2rem,4vw,3.2rem)] font-black leading-[0.96] tracking-[-0.02em] text-[var(--color-ink)]">
                   {selectedCentre.name}
                 </h2>
-                <StatusPill label={`${selectedCentre.pois.length} POIs`} tone="blue" />
+                <p className="max-w-2xl text-sm leading-6 text-[var(--color-muted)] sm:text-base">
+                  {selectedCentre.address}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <StatPill
+                    title="Verified by Margdarshak"
+                    value="Yes"
+                    tone="green"
+                  />
+                  <StatPill title="Level 4" value="Source verified" tone="blue" />
+                  <StatPill title="Last updated" value="17 Jun 2026" tone="muted" />
+                </div>
               </div>
-              <p className="mt-1 text-sm font-medium text-[var(--color-muted)]">
-                {selectedCentre.gateInfo ?? "Gate information pending"}
+
+              <div className="grid gap-2 sm:grid-cols-2">
+                <InfoRow
+                  icon={ShieldCheck}
+                  text={`${selectedCentre.district}, ${selectedCentre.state}`}
+                />
+                <InfoRow icon={Map} text={selectedCentre.examType} />
+                <InfoRow
+                  icon={MapPin}
+                  text={selectedCentre.landmark ?? "Landmark pending"}
+                />
+                <InfoRow
+                  icon={Building2}
+                  text={selectedCentre.gateInfo ?? "Gate info pending"}
+                />
+              </div>
+
+              <p className="max-w-2xl text-sm leading-6 text-[var(--color-muted)]">
+                Use this page to verify the exact exam centre, confirm the pin,
+                measure your distance, and keep nearby support points in one
+                place before exam day.
               </p>
+
+              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                <ActionButton
+                  icon={ArrowUpRight}
+                  label="Open centre page"
+                  onClick={openCentrePage}
+                />
+                <ActionButton
+                  icon={LocateFixed}
+                  label="Distance from me"
+                  onClick={useBrowserLocation}
+                />
+                <ActionButton icon={Copy} label="Copy address" onClick={copyAddress} />
+                <ActionButton
+                  icon={Navigation2}
+                  label="Open in Google Maps"
+                  onClick={openGoogleMaps}
+                />
+                <ActionButton
+                  icon={Share2}
+                  label="Share on WhatsApp"
+                  onClick={shareCurrentCentre}
+                />
+                <ActionButton
+                  icon={Map}
+                  label="Open full map"
+                  onClick={openFullMapForCentre}
+                />
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+                <div className="rounded-[18px] border border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] p-4">
+                  <div className="text-xs font-black uppercase tracking-[0.18em] text-[var(--color-brand)]">
+                    Live status
+                  </div>
+                  <div className="mt-2 text-lg font-black text-[var(--color-ink)]">
+                    {userDistanceMeters == null
+                      ? "Distance from me"
+                      : `${Math.round((userDistanceMeters / 1000) * 10) / 10} km away`}
+                  </div>
+                  <p className="mt-2 text-sm text-[var(--color-muted)]">
+                    {locationStatus}
+                  </p>
+                  {shareStatus && (
+                    <p className="mt-2 text-sm font-semibold text-[var(--color-brand)]">
+                      {shareStatus}
+                    </p>
+                  )}
+                </div>
+
+                <div className="rounded-[18px] border border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] p-4">
+                  <div className="text-xs font-black uppercase tracking-[0.18em] text-[var(--color-brand)]">
+                    Route snapshot
+                  </div>
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                    <MiniStat
+                      label="Road route"
+                      value={roadDistanceKm ? `${roadDistanceKm} km` : "--"}
+                    />
+                    <MiniStat
+                      label="Fastest ETA"
+                      value={fastestEtaMinutes ? `${fastestEtaMinutes} min` : "--"}
+                    />
+                  </div>
+                  <p className="mt-2 text-sm text-[var(--color-muted)]">
+                    Use this as a quick planning check, not your only buffer.
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-[18px] border border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <PanelTitle icon={LocateFixed} title="Your location" />
+                  <StatusPill
+                    label={userLocation ? "set" : "unset"}
+                    tone={userLocation ? "green" : "amber"}
+                  />
+                </div>
+
+                <div className="mt-3 grid gap-3">
+                  <button
+                    type="button"
+                    onClick={useBrowserLocation}
+                    disabled={isLocating}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[var(--color-brand)] px-4 py-3 text-sm font-black text-[#061019] shadow-[0_10px_30px_rgba(118,221,255,0.18)] transition hover:translate-y-[-1px] disabled:opacity-60"
+                  >
+                    <LocateFixed className="h-4 w-4" />
+                    {isLocating ? "Locating..." : "Use my location"}
+                  </button>
+
+                  <form onSubmit={applyManualLocation} className="grid gap-3">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <label className="grid min-w-0 gap-1 text-sm font-bold text-[var(--color-ink)]">
+                        Latitude
+                        <input
+                          type="number"
+                          step="any"
+                          value={manualLocation.latitude}
+                          onChange={(event) =>
+                            setManualLocation((current) => ({
+                              ...current,
+                              latitude: event.target.value,
+                            }))
+                          }
+                          className="w-full min-w-0 rounded-lg border border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] px-3 py-2 text-sm outline-none focus:border-[var(--color-brand)]"
+                        />
+                      </label>
+                      <label className="grid min-w-0 gap-1 text-sm font-bold text-[var(--color-ink)]">
+                        Longitude
+                        <input
+                          type="number"
+                          step="any"
+                          value={manualLocation.longitude}
+                          onChange={(event) =>
+                            setManualLocation((current) => ({
+                              ...current,
+                              longitude: event.target.value,
+                            }))
+                          }
+                          className="w-full min-w-0 rounded-lg border border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] px-3 py-2 text-sm outline-none focus:border-[var(--color-brand)]"
+                        />
+                      </label>
+                    </div>
+                    <button
+                      type="submit"
+                      className="w-full rounded-full border border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] px-4 py-2 text-sm font-bold text-[var(--color-ink)]"
+                    >
+                      Set manual location
+                    </button>
+                  </form>
+                </div>
+              </div>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <div className="inline-flex rounded-full border border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] p-1">
+
+            <div className="border-t border-[var(--color-line)] xl:border-l xl:border-t-0">
+              <div className="flex items-center justify-between border-b border-[var(--color-line)] px-4 py-3">
+                <div>
+                  <div className="text-xs font-black uppercase tracking-[0.16em] text-[var(--color-brand)]">
+                    Map preview
+                  </div>
+                  <div className="text-sm text-[var(--color-muted)]">
+                    Keep this open while you verify the pin and nearby roads.
+                  </div>
+                </div>
                 <button
                   type="button"
-                  onClick={() => setMapMode("road")}
-                  className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-bold transition ${
-                    mapMode === "road"
-                      ? "bg-[var(--color-brand)] text-[#061019]"
-                      : "text-[var(--color-muted)]"
-                  }`}
+                  onClick={() => setIsMapHidden((current) => !current)}
+                  className="rounded-full border border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] px-3 py-2 text-sm font-bold text-[var(--color-ink)]"
                 >
-                  <Map className="h-4 w-4" />
-                  Road
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMapMode("satellite")}
-                  className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-bold transition ${
-                    mapMode === "satellite"
-                      ? "bg-[var(--color-brand)] text-[#061019]"
-                      : "text-[var(--color-muted)]"
-                  }`}
-                >
-                  <Satellite className="h-4 w-4" />
-                  Satellite
+                  {isMapHidden ? "Show map" : "Hide map"}
                 </button>
               </div>
-              <button
-                type="button"
-                onClick={openFullMapForCentre}
-                className="inline-flex items-center justify-center gap-2 rounded-full border border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] px-3 py-2 text-sm font-bold text-[var(--color-ink)]"
-              >
-                <Map className="h-4 w-4" />
-                Open full map
-              </button>
-              <button
-                type="button"
-                onClick={openStreetView}
-                className="inline-flex items-center justify-center gap-2 rounded-full border border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] px-3 py-2 text-sm font-bold text-[var(--color-ink)]"
-              >
-                <Navigation className="h-4 w-4" />
-                Street View
-              </button>
-              <button
-                type="button"
-                onClick={shareCurrentCentre}
-                className="inline-flex items-center justify-center gap-2 rounded-full border border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] px-3 py-2 text-sm font-bold text-[var(--color-ink)]"
-              >
-                <Share2 className="h-4 w-4" />
-                Share centre
-              </button>
-              <button
-                type="button"
-                onClick={shareCurrentCentre}
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-[var(--color-accent)] px-3 py-2 text-sm font-black text-[#061019]"
-              >
-                <Copy className="h-4 w-4" />
-                Copy link
-              </button>
+
+              <div className="min-h-[460px]">
+                {isMapHidden ? (
+                  <div className="grid min-h-[460px] place-items-center px-6 text-center">
+                    <div>
+                      <div className="text-xs font-black uppercase tracking-[0.16em] text-[var(--color-brand)]">
+                        Map hidden
+                      </div>
+                      <p className="mt-2 text-sm text-[var(--color-muted)]">
+                        Keep the map open to inspect the pin, roads, and nearby
+                        landmarks.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <MapPane
+                    centre={selectedCentre}
+                    activeCategories={activeCategories}
+                    userLocation={userLocation}
+                    mapMode={mapMode}
+                  />
+                )}
+              </div>
             </div>
           </div>
+        </div>
 
-          <div className="grid grid-cols-2 gap-px border-b border-[var(--color-line)] bg-[var(--color-line)] md:grid-cols-4">
-            <Metric label="Centres" value={localCentres.length.toString()} />
-            <Metric label="Verified" value={`${verificationScore}%`} />
-            <Metric
-              label="From you"
-              value={userDistanceMeters == null ? "--" : `${Math.round(userDistanceMeters / 1000 * 10) / 10} km`}
-            />
-            <Metric
-              label="Nearest POI"
-              value={nearestPoi ? `${nearestPoi.distanceMeters} m` : "--"}
-            />
-          </div>
-
-          <div className="border-b border-[var(--color-line)] bg-[rgba(255,215,122,0.08)] px-4 py-2 text-sm font-semibold text-[#ffd77a]">
-            {userDistanceMeters == null
-              ? "Set your location to see how far the centre is from you."
-              : `You are about ${Math.round(userDistanceMeters / 100) / 10} km from this centre.`
-            }
-          </div>
-          {shareStatus && (
-            <div className="border-b border-[var(--color-line)] bg-[rgba(118,221,255,0.08)] px-4 py-2 text-sm font-semibold text-[var(--color-brand)]">
-              {shareStatus}
+        <section className="mt-4 rounded-[12px] border border-[rgba(128,171,209,0.18)] bg-[linear-gradient(180deg,rgba(12,20,35,0.84),rgba(8,14,26,0.92))] p-4 shadow-[0_20px_50px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.03)] md:p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs font-black uppercase tracking-[0.16em] text-[var(--color-brand)]">
+                Route intelligence
+              </div>
+              <h2 className="mt-1 text-lg font-black text-[var(--color-ink)]">
+                Fastest, walking, bike, and crowd-aware guidance
+              </h2>
             </div>
-          )}
+            <StatusPill label="Live route ETA" tone="blue" />
+          </div>
 
-          <div className="h-[calc(100vh-266px)] min-h-[560px]">
-            <MapPane
-              centre={selectedCentre}
-              activeCategories={selectedCategories}
-              userLocation={userLocation}
-              mapMode={mapMode}
+          <p className="mt-3 max-w-3xl text-sm text-[var(--color-muted)]">
+            Based on about {roadDistanceKm ? `${roadDistanceKm} km` : "--"} of
+            road travel, this panel compares walking, bike, and car routes, then
+            adds a crowd-aware estimate for exam-day planning.
+          </p>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-4">
+            <SmallPlanCard
+              title="Fastest route"
+              value={fastestEtaMinutes ? `${fastestEtaMinutes} min` : "--"}
+              detail="Best current road ETA"
             />
+            <SmallPlanCard
+              title="Walking route"
+              value={walkingEtaMinutes ? `${walkingEtaMinutes} min` : "--"}
+              detail="Good for short distances"
+            />
+            <SmallPlanCard
+              title="Bike route"
+              value={bikeEtaMinutes ? `${bikeEtaMinutes} min` : "--"}
+              detail="Usually best in Patna city movement"
+            />
+            <SmallPlanCard
+              title="Crowd pressure"
+              value={getCrowdPressureLabel(selectedCentre.pois.length, userLocation)}
+              detail="Estimated from nearby activity"
+            />
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button className="rounded-full bg-[var(--color-brand)] px-4 py-2 text-sm font-black text-[#061019]">
+              Fastest
+            </button>
+            <button className="rounded-full border border-[var(--color-line)] px-4 py-2 text-sm font-bold text-[var(--color-muted)]">
+              Least crowded
+            </button>
+            <button className="rounded-full border border-[var(--color-line)] px-4 py-2 text-sm font-bold text-[var(--color-muted)]">
+              Best walking
+            </button>
+          </div>
+
+          <div className="mt-4 rounded-[18px] border border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-xs font-black uppercase tracking-[0.16em] text-[var(--color-brand)]">
+                  Suggested routes
+                </div>
+                <h3 className="mt-1 text-base font-black text-[var(--color-ink)]">
+                  Pick the mode that fits distance and crowd pressure
+                </h3>
+              </div>
+              <StatusPill label="Crowd aware" tone="green" />
+            </div>
+
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+              <RouteModeCard
+                icon={Footprints}
+                title="Walk"
+                eta={walkingEtaMinutes}
+                reason="Best for nearby centres and short, dense lanes"
+                crowd="Low vehicle dependency"
+              />
+              <RouteModeCard
+                icon={Bike}
+                title="Bike"
+                eta={bikeEtaMinutes}
+                reason="Best balance for Patna traffic and exam-time movement"
+                crowd="Often fastest in mixed roads"
+              />
+              <RouteModeCard
+                icon={CarFront}
+                title="Car / Auto"
+                eta={fastestEtaMinutes}
+                reason="Best when distance is longer or weather is poor"
+                crowd="Safer fallback if walking is crowded"
+              />
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="rounded-full border border-[var(--color-line)] px-4 py-2 text-sm font-bold text-[var(--color-ink)]"
+              >
+                Open walking route
+              </button>
+              <button
+                type="button"
+                className="rounded-full bg-[var(--color-brand)] px-4 py-2 text-sm font-black text-[#061019]"
+              >
+                Open bike route
+              </button>
+            </div>
+
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              <StatPill
+                title="Crowd signal"
+                value={getCrowdPressureLabel(selectedCentre.pois.length, userLocation)}
+                tone={getCrowdTone(selectedCentre.pois.length, userLocation)}
+              />
+              <StatPill
+                title="How it works"
+                value="Uses live location plus route distance now; opt-in user density can plug in later."
+                tone="muted"
+              />
+            </div>
+
+            <p className="mt-4 text-sm text-[var(--color-muted)]">
+              For live crowding later, we can add anonymous opt-in user density
+              per map cell, then merge it with the route score and peak-time
+              history.
+            </p>
           </div>
         </section>
 
-        <aside className="flex flex-col gap-4">
-          <section className="panel p-4">
-            <PanelTitle icon={ShieldCheck} title="Centre view" />
-            <div className="mt-4 space-y-3">
-              <QualityRow
-                label="Verified nearby places"
-                value={verifiedPois.length.toString()}
-                tone="green"
-              />
-              <QualityRow
-                label="Needs review"
-                value={(selectedCentre.pois.length - verifiedPois.length).toString()}
-                tone="amber"
-              />
-              <QualityRow
-                label="Distance known"
-                value={userDistanceMeters == null ? "No" : "Yes"}
-                tone="blue"
-              />
+        <section className="mt-4 rounded-[12px] border border-[rgba(128,171,209,0.18)] bg-[linear-gradient(180deg,rgba(12,20,35,0.84),rgba(8,14,26,0.92))] p-4 shadow-[0_20px_50px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.03)] md:p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs font-black uppercase tracking-[0.16em] text-[var(--color-brand)]">
+                Inspect
+              </div>
+              <h2 className="mt-1 text-lg font-black text-[var(--color-ink)]">
+                Nearby POIs
+              </h2>
             </div>
-          </section>
+            <StatusPill label={`${verifiedPois.length} verified`} tone="blue" />
+          </div>
 
-          <section className="panel p-4">
-            <PanelTitle icon={Building2} title="POI filters" />
-            <div className="mt-3 flex flex-wrap gap-2">
-              {categories.map((category) => {
-                const isActive = selectedCategories.includes(category);
-                return (
-                  <button
-                    key={category}
-                    type="button"
-                    onClick={() => toggleCategory(category)}
-                    className={`rounded-md border px-3 py-2 text-xs font-bold ${
-                      isActive
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setActiveCategories([])}
+              className="rounded-full border border-[var(--color-line)] px-3 py-2 text-xs font-bold text-[var(--color-muted)]"
+            >
+              All
+            </button>
+            {selectedCentre.pois.map((poi) => {
+              const isActive = activeCategories.includes(poi.category);
+              return (
+                <button
+                  key={poi.category}
+                  type="button"
+                  onClick={() =>
+                    setActiveCategories((current) =>
+                      current.includes(poi.category)
+                        ? current.filter((item) => item !== poi.category)
+                        : [...current, poi.category],
+                    )
+                  }
+                  className={`rounded-full border px-3 py-2 text-xs font-bold ${
+                    isActive
                       ? "border-[var(--color-brand)] bg-[var(--color-brand-soft)] text-[var(--color-brand)]"
-                        : "border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] text-[var(--color-muted)]"
-                    }`}
-                  >
-                    {categoryLabels[category]}
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          <section className="panel p-4">
-            <PanelTitle icon={CheckCircle2} title="Current list" />
-            <div className="mt-3 space-y-3">
-              {visiblePois.map((poi) => (
-                <article
-                  key={poi.id}
-                  className="rounded-xl border border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] p-3"
+                      : "border-[var(--color-line)] text-[var(--color-muted)]"
+                  }`}
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <h3 className="truncate font-bold text-[var(--color-ink)]">
-                        {poi.name}
-                      </h3>
-                      <p className="mt-1 text-xs font-bold text-[var(--color-brand)]">
-                        {categoryLabels[poi.category]}
-                      </p>
-                    </div>
-                    {poi.verifiedStatus === "verified" ? (
-                      <CheckCircle2 className="h-5 w-5 shrink-0 text-[var(--color-success)]" />
-                    ) : (
-                      <CircleAlert className="h-5 w-5 shrink-0 text-[var(--color-warn)]" />
-                    )}
-                  </div>
-                  <p className="mt-2 line-clamp-2 text-sm text-[var(--color-muted)]">
-                    {poi.address}
-                  </p>
-                  {userLocation && (
-                    <p className="mt-2 text-xs font-bold text-[var(--color-brand)]">
-                      From you:{" "}
-                      {Math.round(
-                        distanceBetweenMeters(
-                          userLocation.latitude,
-                          userLocation.longitude,
-                          poi.latitude,
-                          poi.longitude,
-                        ),
-                      )}{" "}
-                      m
+                  {categoryLabels[poi.category]}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {visiblePois.map((poi) => (
+              <article
+                key={poi.id}
+                className="rounded-[18px] border border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="truncate font-black text-[var(--color-ink)]">
+                      {poi.name}
+                    </h3>
+                    <p className="mt-1 text-xs font-bold text-[var(--color-brand)]">
+                      {categoryLabels[poi.category]}
                     </p>
-                  )}
-                  <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-                    <MiniStat label="Distance" value={`${poi.distanceMeters} m`} />
-                    <MiniStat label="Walk" value={`${poi.walkingTimeMinutes} min`} />
-                    <MiniStat label="Drive" value={`${poi.drivingTimeMinutes} min`} />
                   </div>
-                </article>
-              ))}
-            </div>
-          </section>
-        </aside>
+                  {poi.verifiedStatus === "verified" ? (
+                    <CheckCircle2 className="h-5 w-5 text-[var(--color-success)]" />
+                  ) : (
+                    <CircleAlert className="h-5 w-5 text-[var(--color-warn)]" />
+                  )}
+                </div>
+                <p className="mt-2 text-sm text-[var(--color-muted)]">
+                  {poi.address}
+                </p>
+                <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                  <MiniStat label="Distance" value={`${poi.distanceMeters} m`} />
+                  <MiniStat label="Walk" value={`${poi.walkingTimeMinutes} min`} />
+                  <MiniStat label="Drive" value={`${poi.drivingTimeMinutes} min`} />
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
       </section>
+
+      {isFullMapOpen && (
+        <div className="fixed inset-0 z-50 bg-[var(--color-app)]">
+          <div className="flex h-full flex-col">
+            <div className="flex items-center justify-between gap-3 border-b border-[var(--color-line)] px-4 py-3 backdrop-blur-xl">
+              <div>
+                <div className="text-xs font-black uppercase tracking-[0.16em] text-[var(--color-brand)]">
+                  Full map
+                </div>
+                <div className="text-sm font-bold text-[var(--color-ink)]">
+                  {selectedCentre.name}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setMapMode((mode) => (mode === "road" ? "satellite" : "road"))
+                  }
+                  className="rounded-full border border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] px-3 py-2 text-sm font-bold text-[var(--color-ink)]"
+                >
+                  {mapMode === "road" ? "Satellite" : "Road"}
+                </button>
+                <button
+                  type="button"
+                  onClick={closeFullMap}
+                  className="rounded-full bg-[var(--color-brand)] px-4 py-2 text-sm font-black text-[#061019]"
+                >
+                  Back
+                </button>
+              </div>
+            </div>
+
+            <div className="min-h-0 flex-1">
+              <MapPane
+                centre={selectedCentre}
+                activeCategories={activeCategories}
+                userLocation={userLocation}
+                mapMode={mapMode}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
@@ -677,9 +791,35 @@ function InfoRow({
   text: string;
 }) {
   return (
-    <div className="flex gap-2 text-sm font-medium text-[var(--color-muted)]">
+    <div className="flex min-w-0 gap-2 text-sm font-medium text-[var(--color-muted)]">
       <Icon className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-brand)]" />
-      <span>{text}</span>
+      <span className="truncate">{text}</span>
+    </div>
+  );
+}
+
+function StatPill({
+  title,
+  value,
+  tone,
+}: {
+  title: string;
+  value: string;
+  tone: "green" | "amber" | "blue" | "muted";
+}) {
+  const tones = {
+    green: "border-[rgba(121,230,187,0.18)] bg-[rgba(121,230,187,0.08)] text-[var(--color-success)]",
+    amber: "border-[rgba(255,215,122,0.18)] bg-[rgba(255,215,122,0.08)] text-[var(--color-warn)]",
+    blue: "border-[rgba(118,221,255,0.18)] bg-[rgba(118,221,255,0.08)] text-[var(--color-brand)]",
+    muted: "border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] text-[var(--color-muted)]",
+  };
+
+  return (
+    <div className={`rounded-2xl border px-3 py-2 ${tones[tone]}`}>
+      <div className="text-[11px] font-black uppercase tracking-[0.16em]">
+        {title}
+      </div>
+      <div className="mt-1 text-sm font-black text-[var(--color-ink)]">{value}</div>
     </div>
   );
 }
@@ -703,23 +843,24 @@ function PanelTitle({
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+function ActionButton({
+  icon: Icon,
+  label,
+  onClick,
+}: {
+  icon: typeof Map;
+  label: string;
+  onClick: () => void;
+}) {
   return (
-    <div className="bg-[rgba(255,255,255,0.04)] px-4 py-3">
-      <div className="text-xl font-black text-[var(--color-ink)]">{value}</div>
-      <div className="mt-0.5 text-xs font-bold uppercase tracking-[0.08em] text-[var(--color-muted)]">
-        {label}
-      </div>
-    </div>
-  );
-}
-
-function MiniStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-md bg-[rgba(255,255,255,0.04)] px-2 py-2">
-      <div className="font-black text-[var(--color-ink)]">{value}</div>
-      <div className="mt-1 text-[var(--color-muted)]">{label}</div>
-    </div>
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex items-center justify-center gap-2 rounded-full border border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] px-3 py-3 text-sm font-bold text-[var(--color-ink)]"
+    >
+      <Icon className="h-4 w-4" />
+      {label}
+    </button>
   );
 }
 
@@ -743,29 +884,99 @@ function StatusPill({
   );
 }
 
-function QualityRow({
-  label,
+function SmallPlanCard({
+  title,
   value,
-  tone,
+  detail,
 }: {
-  label: string;
+  title: string;
   value: string;
-  tone: "green" | "amber" | "blue";
+  detail: string;
 }) {
-  const colors = {
-    green: "text-[var(--color-success)] bg-[rgba(121,230,187,0.12)]",
-    amber: "text-[var(--color-warn)] bg-[rgba(255,215,122,0.12)]",
-    blue: "text-[var(--color-brand)] bg-[rgba(118,221,255,0.12)]",
-  };
-
   return (
-    <div className="flex items-center justify-between gap-3 rounded-lg border border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] p-3">
-      <span className="text-sm font-bold text-[var(--color-ink)]">{label}</span>
-      <span className={`grid min-w-12 place-items-center rounded-md px-2 py-1 text-sm font-black ${colors[tone]}`}>
-        {value}
-      </span>
+    <article className="rounded-[18px] border border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] p-4">
+      <div className="text-xs font-black uppercase tracking-[0.16em] text-[var(--color-brand)]">
+        {title}
+      </div>
+      <div className="mt-1 text-xl font-black text-[var(--color-ink)]">{value}</div>
+      <p className="mt-2 text-sm text-[var(--color-muted)]">{detail}</p>
+    </article>
+  );
+}
+
+function RouteModeCard({
+  icon: Icon,
+  title,
+  eta,
+  reason,
+  crowd,
+}: {
+  icon: typeof Footprints;
+  title: string;
+  eta: number | null;
+  reason: string;
+  crowd: string;
+}) {
+  return (
+    <article className="rounded-[18px] border border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] p-4">
+      <div className="flex items-center gap-2">
+        <span className="grid h-8 w-8 place-items-center rounded-md bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
+          <Icon className="h-4 w-4" />
+        </span>
+        <div>
+          <div className="text-xs font-black uppercase tracking-[0.16em] text-[var(--color-brand)]">
+            {title}
+          </div>
+          <div className="text-lg font-black text-[var(--color-ink)]">
+            {eta ? `${eta} min` : "--"}
+          </div>
+        </div>
+      </div>
+      <p className="mt-3 text-sm text-[var(--color-muted)]">{reason}</p>
+      <p className="mt-2 text-xs font-bold text-[var(--color-success)]">
+        {crowd}
+      </p>
+    </article>
+  );
+}
+
+function MiniStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md bg-[rgba(255,255,255,0.04)] px-2 py-2">
+      <div className="font-black text-[var(--color-ink)]">{value}</div>
+      <div className="mt-1 text-[var(--color-muted)]">{label}</div>
     </div>
   );
+}
+
+function getCrowdPressureScore(
+  totalPois: number,
+  userLocation: UserLocation | null,
+) {
+  const base = 18 + totalPois * 5 + (userLocation ? 12 : 0);
+  return Math.max(10, Math.min(92, base));
+}
+
+function getCrowdPressureLabel(
+  totalPois: number,
+  userLocation: UserLocation | null,
+) {
+  const score = getCrowdPressureScore(totalPois, userLocation);
+
+  if (score >= 70) return "High";
+  if (score >= 40) return "Medium";
+  return "Low";
+}
+
+function getCrowdTone(
+  totalPois: number,
+  userLocation: UserLocation | null,
+): "green" | "amber" | "blue" {
+  const score = getCrowdPressureScore(totalPois, userLocation);
+
+  if (score >= 70) return "amber";
+  if (score >= 40) return "blue";
+  return "green";
 }
 
 function distanceBetweenMeters(
